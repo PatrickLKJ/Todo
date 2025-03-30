@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="redlib.backend.dao.TaskMapper">
+  <resultMap id="BaseResultMap" type="redlib.backend.model.Task">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="user_id" jdbcType="INTEGER" property="userId" />
+    <result column="title" jdbcType="VARCHAR" property="title" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="completed" jdbcType="TINYINT" property="completed" />
+    <result column="due_date" jdbcType="VARCHAR" property="dueDate" />
+    <result column="created_at" jdbcType="TIMESTAMP" property="createdAt" />
+    <result column="priority" jdbcType="VARCHAR" property="priority" />
+    <result column="category" jdbcType="VARCHAR" property="category" />
+  </resultMap>
+  
+  <sql id="Base_Column_List">
+    id, user_id, title, description, completed, due_date as dueDate, created_at as createdAt,
+    priority, category
+  </sql>
+  
+  <!-- 添加selectAll方法 -->
+  <select id="selectAll" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from task
+  </select>
+  
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from task
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  
+  <insert id="insert" parameterType="redlib.backend.model.Task" useGeneratedKeys="true" keyProperty="id">
+    insert into task (user_id, title, description, completed, due_date, priority, category)
+    values (#{userId,jdbcType=INTEGER}, #{title,jdbcType=VARCHAR}, 
+            #{description,jdbcType=VARCHAR}, #{completed,jdbcType=TINYINT}, 
+            #{dueDate,jdbcType=VARCHAR}, #{priority,jdbcType=VARCHAR}, #{category,jdbcType=VARCHAR})
+  </insert>
+  
+  <update id="updateByPrimaryKey" parameterType="redlib.backend.model.Task">
+    update task
+    set user_id = #{userId,jdbcType=INTEGER},
+        title = #{title,jdbcType=VARCHAR},
+        description = #{description,jdbcType=VARCHAR},
+        completed = #{completed,jdbcType=TINYINT},
+        due_date = #{dueDate,jdbcType=VARCHAR},
+        priority = #{priority,jdbcType=VARCHAR},
+        category = #{category,jdbcType=VARCHAR}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from task
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+</mapper>
