@@ -592,10 +592,10 @@ const TaskList: React.FC = () => {
   // 当过滤条件变化时重新加载数据
   useEffect(() => {
     if (actionRef.current && currentUserId) {
-      console.log('过滤条件变化，重新加载数据:', { activeTab, filterPriority, filterCategory });
+      console.log('过滤条件变化，重新加载数据:', { activeTab, filterPriority, filterCategory, searchText });
       actionRef.current.reload();
     }
-  }, [activeTab, filterPriority, filterCategory]);
+  }, [activeTab, filterPriority, filterCategory, searchText]);
   
   // 任务颜色映射
   const priorityColors = {
@@ -1217,8 +1217,10 @@ const TaskList: React.FC = () => {
               placeholder="搜索任务标题或描述"
               value={searchText}
               onChange={e => setSearchText(e.target.value)}
+              onSearch={value => setSearchText(value)}
               style={{ width: '100%' }}
               allowClear
+              enterButton
               prefix={<SearchOutlined />}
               size="middle"
             />
