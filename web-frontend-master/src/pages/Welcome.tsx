@@ -1,8 +1,8 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { useModel } from '@umijs/max';
+import { useModel, history } from '@umijs/max';
 import { Card, Button, Space, Typography, Row, Col } from 'antd';
 import { CheckCircleOutlined, CalendarOutlined, TeamOutlined } from '@ant-design/icons';
-import React from 'react';
+import React, { useState } from 'react';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -119,6 +119,17 @@ const StatCard: React.FC<{
 const Welcome: React.FC = () => {
   const { initialState } = useModel('@@initialState');
   const username = initialState?.currentToken?.userName || '用户';
+  const [newTaskModalVisible, setNewTaskModalVisible] = useState(false);
+
+  // 点击创建新任务按钮
+  const handleCreateTask = () => {
+    history.push('/task?action=create');
+  };
+
+  // 点击查看全部任务按钮
+  const handleViewAllTasks = () => {
+    history.push('/task');
+  };
 
   return (
     <PageContainer
@@ -174,6 +185,7 @@ const Welcome: React.FC = () => {
               <Button 
                 type="primary" 
                 size="large" 
+                onClick={handleCreateTask}
                 style={{ 
                   background: 'white', 
                   borderColor: 'white',
@@ -187,6 +199,7 @@ const Welcome: React.FC = () => {
               </Button>
               <Button 
                 size="large" 
+                onClick={handleViewAllTasks}
                 style={{ 
                   borderColor: 'rgba(255, 255, 255, 0.5)',
                   color: 'white',

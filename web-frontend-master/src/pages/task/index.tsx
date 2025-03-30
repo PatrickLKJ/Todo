@@ -16,7 +16,7 @@ import {
   BellOutlined
 } from '@ant-design/icons';
 import { getTasksByPage as listTasksByPage, deleteTask, updateTask } from '@/services/api/task';
-import { useModel } from 'umi';
+import { useModel, history } from 'umi';
 import TaskForm from './components/TaskForm';
 import { convertPageData } from '@/utils/request';
 import moment from 'moment';
@@ -25,8 +25,8 @@ import type { Dayjs } from 'dayjs';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import type { MenuProps } from 'antd';
 
-const { TabPane } = Tabs;
 const { Search } = Input;
 const { Title, Paragraph, Text } = Typography;
 
@@ -467,6 +467,14 @@ const TaskList: React.FC = () => {
     }
   }, [taskData]);
   
+  // 当过滤条件变化时重新加载数据
+  useEffect(() => {
+    if (actionRef.current && currentUserId) {
+      console.log('过滤条件变化，重新加载数据:', { activeTab, filterPriority, filterCategory });
+      actionRef.current.reload();
+    }
+  }, [activeTab, filterPriority, filterCategory]);
+  
   // 任务颜色映射
   const priorityColors = {
     high: 'red',
@@ -486,17 +494,19 @@ const TaskList: React.FC = () => {
   const getFilteredTasks = () => {
     let filtered = [...taskData];
     
-    // 按标签过滤
-    if (activeTab === 'completed') {
-      filtered = filtered.filter(task => task.completed);
-    } else if (activeTab === 'uncompleted') {
-      filtered = filtered.filter(task => !task.completed);
-    } else if (activeTab === 'upcoming') {
+    // 按选项卡过滤
+    if (activeTab !== 'all') {
       const today = moment().format('YYYY-MM-DD');
-      filtered = filtered.filter(task => !task.completed && task.dueDate && task.dueDate > today);
-    } else if (activeTab === 'overdue') {
-      const today = moment().format('YYYY-MM-DD');
-      filtered = filtered.filter(task => !task.completed && task.dueDate && task.dueDate < today);
+      
+      if (activeTab === 'completed') {
+        filtered = filtered.filter(task => task.completed);
+      } else if (activeTab === 'uncompleted') {
+        filtered = filtered.filter(task => !task.completed);
+      } else if (activeTab === 'upcoming') {
+        filtered = filtered.filter(task => !task.completed && task.dueDate && task.dueDate > today);
+      } else if (activeTab === 'overdue') {
+        filtered = filtered.filter(task => !task.completed && task.dueDate && task.dueDate < today);
+      }
     }
     
     // 按搜索文本过滤
@@ -690,15 +700,53 @@ const TaskList: React.FC = () => {
   const renderCalendarTasks = (date: Dayjs | Moment) => {
     // 统一使用moment格式化日期
     const dateStr = moment(date.toString()).format('YYYY-MM-DD');
-    const dayTasks = taskData.filter(task => task.dueDate === dateStr);
+    // 先获取当天的所有任务，然后应用筛选条件
+    const allDayTasks = taskData.filter(task => task.dueDate === dateStr);
     
-    if (dayTasks.length === 0) {
+    // 应用筛选条件 - 与getFilteredTasks保持一致
+    let filteredDayTasks = [...allDayTasks];
+    
+    // 按选项卡过滤
+    if (activeTab !== 'all') {
+      const today = moment().format('YYYY-MM-DD');
+      
+      if (activeTab === 'completed') {
+        filteredDayTasks = filteredDayTasks.filter(task => task.completed);
+      } else if (activeTab === 'uncompleted') {
+        filteredDayTasks = filteredDayTasks.filter(task => !task.completed);
+      } else if (activeTab === 'upcoming') {
+        filteredDayTasks = filteredDayTasks.filter(task => !task.completed && task.dueDate && task.dueDate > today);
+      } else if (activeTab === 'overdue') {
+        filteredDayTasks = filteredDayTasks.filter(task => !task.completed && task.dueDate && task.dueDate < today);
+      }
+    }
+    
+    // 按搜索文本过滤
+    if (searchText) {
+      const lowerSearch = searchText.toLowerCase();
+      filteredDayTasks = filteredDayTasks.filter(task => 
+        (task.title && task.title.toLowerCase().includes(lowerSearch)) ||
+        (task.description && task.description.toLowerCase().includes(lowerSearch))
+      );
+    }
+    
+    // 按优先级过滤
+    if (filterPriority) {
+      filteredDayTasks = filteredDayTasks.filter(task => task.priority === filterPriority);
+    }
+    
+    // 按分类过滤
+    if (filterCategory) {
+      filteredDayTasks = filteredDayTasks.filter(task => task.category === filterCategory);
+    }
+    
+    if (filteredDayTasks.length === 0) {
       return null;
     }
     
     return (
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {dayTasks.slice(0, 2).map(task => (
+        {filteredDayTasks.slice(0, 2).map(task => (
           <li key={task.id}>
             <Tag
               color={task.completed ? 'green' : task.priority === 'high' ? 'red' : task.priority === 'medium' ? 'orange' : 'green'}
@@ -712,7 +760,7 @@ const TaskList: React.FC = () => {
             </Tag>
           </li>
         ))}
-        {dayTasks.length > 2 && (
+        {filteredDayTasks.length > 2 && (
           <li>
             <Button 
               type="link" 
@@ -723,7 +771,7 @@ const TaskList: React.FC = () => {
                   content: (
                     <List
                       size="small"
-                      dataSource={dayTasks}
+                      dataSource={filteredDayTasks}
                       renderItem={task => (
                         <List.Item 
                           actions={[
@@ -756,7 +804,7 @@ const TaskList: React.FC = () => {
                 });
               }}
             >
-              还有 {dayTasks.length - 2} 项任务...
+              还有 {filteredDayTasks.length - 2} 项任务...
             </Button>
           </li>
         )}
@@ -962,6 +1010,20 @@ const TaskList: React.FC = () => {
     </Modal>
   );
   
+  // 从URL参数中获取action
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    
+    if (action === 'create') {
+      // 自动打开创建任务表单
+      setCurrentTask(undefined); // 确保是创建新任务而不是编辑
+      setFormVisible(true);
+      // 清除URL参数，避免刷新页面时重复触发
+      history.push('/task');
+    }
+  }, []);
+  
   return (
     <PageContainer
       extra={[
@@ -1037,7 +1099,7 @@ const TaskList: React.FC = () => {
           <Col>
             <Dropdown menu={{
               selectedKeys: filterPriority ? [filterPriority] : [],
-              onClick: e => setFilterPriority(e.key === 'all' ? null : e.key),
+              onClick: ({ key }) => setFilterPriority(key === 'all' ? null : key),
               items: [
                 { key: 'all', label: '全部优先级' },
                 { key: 'high', label: '高优先级', icon: <Badge color="red" /> },
@@ -1053,7 +1115,7 @@ const TaskList: React.FC = () => {
           <Col>
             <Dropdown menu={{
               selectedKeys: filterCategory ? [filterCategory] : [],
-              onClick: e => setFilterCategory(e.key === 'all' ? null : e.key),
+              onClick: ({ key }) => setFilterCategory(key === 'all' ? null : key),
               items: [
                 { key: 'all', label: '全部分类' },
                 { key: 'work', label: '工作' },
@@ -1069,25 +1131,13 @@ const TaskList: React.FC = () => {
           </Col>
         </Row>
         
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane tab="全部" key="all" />
-          <TabPane 
-            tab={<span><Badge status="success" />已完成</span>} 
-            key="completed" 
-          />
-          <TabPane 
-            tab={<span><Badge status="default" />未完成</span>} 
-            key="uncompleted" 
-          />
-          <TabPane 
-            tab={<span><Badge status="processing" />即将到期</span>} 
-            key="upcoming" 
-          />
-          <TabPane 
-            tab={<span><Badge status="error" />已逾期</span>} 
-            key="overdue" 
-          />
-        </Tabs>
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+          { key: 'all', label: '全部' },
+          { key: 'completed', label: <span><Badge status="success" />已完成</span> },
+          { key: 'uncompleted', label: <span><Badge status="default" />未完成</span> },
+          { key: 'upcoming', label: <span><Badge status="processing" />即将到期</span> },
+          { key: 'overdue', label: <span><Badge status="error" />已逾期</span> }
+        ]} />
       </Card>
       
       {viewMode === 'table' ? (
@@ -1208,12 +1258,50 @@ const TaskList: React.FC = () => {
               // 处理数据加载
               if (result && result.list) {
                 console.log('加载任务列表:', result.list.length, '条数据');
-                handleDataLoaded(result.list);
+                let filteredList = [...result.list];
+                
+                // 根据选项卡过滤
+                if (activeTab !== 'all') {
+                  const today = moment().format('YYYY-MM-DD');
+                  
+                  if (activeTab === 'completed') {
+                    filteredList = filteredList.filter(task => task.completed);
+                  } else if (activeTab === 'uncompleted') {
+                    filteredList = filteredList.filter(task => !task.completed);
+                  } else if (activeTab === 'upcoming') {
+                    filteredList = filteredList.filter(task => !task.completed && task.dueDate && task.dueDate > today);
+                  } else if (activeTab === 'overdue') {
+                    filteredList = filteredList.filter(task => !task.completed && task.dueDate && task.dueDate < today);
+                  }
+                }
+                
+                // 根据优先级过滤
+                if (filterPriority) {
+                  filteredList = filteredList.filter(task => task.priority === filterPriority);
+                }
+                
+                // 根据分类过滤
+                if (filterCategory) {
+                  filteredList = filteredList.filter(task => task.category === filterCategory);
+                }
+                
+                // 更新过滤后的数据
+                handleDataLoaded(filteredList);
+                
+                // 返回过滤后的数据给ProTable
+                return {
+                  data: filteredList,
+                  success: true,
+                  total: filteredList.length
+                };
               } else {
                 console.warn('查询结果中没有list字段');
+                return {
+                  data: [],
+                  total: 0,
+                  success: false,
+                };
               }
-              
-              return convertPageData(result);
             } catch (error: any) {
               console.error('查询任务失败:', error);
               if (error.response?.status === 403) {
