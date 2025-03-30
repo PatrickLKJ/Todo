@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Input, Modal, DatePicker, Switch, message, Select, Tag, Space, Row, Col, Divider, Button, Alert } from 'antd';
-import { CalendarOutlined, ClockCircleOutlined, FlagOutlined, TagOutlined, PushpinOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { CalendarOutlined, ClockCircleOutlined, FlagOutlined, TagOutlined, PushpinOutlined, ExclamationCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import { createTask, updateTask } from '@/services/api/task';
 import { useModel } from 'umi';
@@ -112,15 +112,28 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
     const category = values.category as 'work' | 'study' | 'life' | 'other' || 'work';
     
     return (
-      <div style={{ padding: '8px 0' }}>
-        <Divider orientation="left">任务预览</Divider>
+      <div style={{ padding: '16px', background: '#f9f9f9', borderRadius: '12px', marginTop: 24 }}>
+        <Divider orientation="center" style={{ fontSize: 14, color: '#8c8c8c', margin: '0 0 16px 0' }}>任务预览</Divider>
         <Row>
           <Col span={24}>
-            <h3>{values.title || '(未填写标题)'}</h3>
-            <p style={{ color: '#666' }}>{values.description || '(无描述)'}</p>
-            <Space>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: 18 }}>{values.title || '(未填写标题)'}</h3>
+            {values.description ? (
+              <div style={{ 
+                color: '#666', 
+                background: 'white', 
+                padding: '12px', 
+                borderRadius: '8px',
+                marginBottom: '16px',
+                border: '1px solid #f0f0f0'
+              }}>
+                {values.description}
+              </div>
+            ) : (
+              <div style={{ color: '#999', marginBottom: '16px' }}>(无描述)</div>
+            )}
+            <Space size={8} wrap>
               {values.dueDate && (
-                <Tag icon={<CalendarOutlined />} color="#108ee9">
+                <Tag icon={<CalendarOutlined />} color="#108ee9" style={{ borderRadius: '4px', padding: '0 8px' }}>
                   截止: {typeof values.dueDate === 'object' && moment.isMoment(values.dueDate) 
                     ? values.dueDate.format('YYYY-MM-DD') 
                     : typeof values.dueDate === 'string' 
@@ -128,16 +141,16 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
                       : '无效日期'}
                 </Tag>
               )}
-              <Tag icon={categoryIcons[category]} color="#87d068">
+              <Tag icon={categoryIcons[category]} color="#87d068" style={{ borderRadius: '4px', padding: '0 8px' }}>
                 {category === 'work' ? '工作' : 
                  category === 'study' ? '学习' : 
                  category === 'life' ? '生活' : '其他'}
               </Tag>
-              <Tag color={priorityColors[priority]}>
+              <Tag color={priorityColors[priority]} style={{ borderRadius: '4px', padding: '0 8px' }}>
                 {priority === 'high' ? '高优先级' : 
                  priority === 'medium' ? '中优先级' : '低优先级'}
               </Tag>
-              {values.completed && <Tag color="green">已完成</Tag>}
+              {values.completed && <Tag color="green" style={{ borderRadius: '4px', padding: '0 8px' }}>已完成</Tag>}
             </Space>
           </Col>
         </Row>
@@ -147,7 +160,17 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
   
   return (
     <Modal
-      title={task?.id ? '编辑任务' : '创建新任务'}
+      title={
+        <div style={{ 
+          borderBottom: '1px solid #f0f0f0', 
+          padding: '0 0 16px 0', 
+          display: 'flex', 
+          alignItems: 'center' 
+        }}>
+          <FileTextOutlined style={{ marginRight: 8, fontSize: 18, color: '#1890ff' }} />
+          {task?.id ? '编辑任务' : '创建新任务'}
+        </div>
+      }
       open={visible}
       onCancel={onCancel}
       footer={[
@@ -164,8 +187,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
         </Button>,
       ]}
       destroyOnClose
-      width={520}
+      width={560}
       bodyStyle={{ maxHeight: '70vh', overflowY: 'auto', padding: '24px' }}
+      maskClosable={false}
+      centered
     >
       {errorMessage && (
         <Alert
@@ -190,14 +215,23 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
           label="任务标题"
           rules={[{ required: true, message: '请输入任务标题' }]}
         >
-          <Input placeholder="输入任务标题" />
+          <Input 
+            placeholder="输入任务标题" 
+            size="large" 
+            prefix={<FileTextOutlined style={{ color: '#bfbfbf' }} />}
+            style={{ borderRadius: '6px' }}
+          />
         </Form.Item>
         
         <Form.Item
           name="description"
           label="任务描述"
         >
-          <Input.TextArea rows={4} placeholder="输入任务详细描述..." />
+          <Input.TextArea 
+            rows={4} 
+            placeholder="输入任务详细描述..." 
+            style={{ borderRadius: '6px' }}
+          />
         </Form.Item>
         
         <Row gutter={16}>
@@ -207,15 +241,19 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
               label="优先级"
               rules={[{ required: true, message: '请选择优先级' }]}
             >
-              <Select placeholder="请选择优先级">
+              <Select 
+                placeholder="请选择优先级"
+                dropdownStyle={{ borderRadius: '6px' }}
+                style={{ borderRadius: '6px' }}
+              >
                 <Select.Option value="high">
-                  <Tag color={priorityColors.high}>高优先级</Tag>
+                  <Tag color={priorityColors.high} style={{ width: '100%', textAlign: 'center' }}>高优先级</Tag>
                 </Select.Option>
                 <Select.Option value="medium">
-                  <Tag color={priorityColors.medium}>中优先级</Tag>
+                  <Tag color={priorityColors.medium} style={{ width: '100%', textAlign: 'center' }}>中优先级</Tag>
                 </Select.Option>
                 <Select.Option value="low">
-                  <Tag color={priorityColors.low}>低优先级</Tag>
+                  <Tag color={priorityColors.low} style={{ width: '100%', textAlign: 'center' }}>低优先级</Tag>
                 </Select.Option>
               </Select>
             </Form.Item>
@@ -226,7 +264,11 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
               label="分类"
               rules={[{ required: true, message: '请选择分类' }]}
             >
-              <Select placeholder="请选择分类">
+              <Select 
+                placeholder="请选择分类"
+                dropdownStyle={{ borderRadius: '6px' }}
+                style={{ borderRadius: '6px' }}
+              >
                 <Select.Option value="work">
                   <Space>{categoryIcons.work} 工作</Space>
                 </Select.Option>
@@ -250,20 +292,30 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
               name="dueDate"
               label="截止日期"
             >
-              <DatePicker style={{ width: '100%' }} placeholder="选择截止日期" />
+              <DatePicker 
+                placeholder="选择截止日期" 
+                style={{ width: '100%', borderRadius: '6px' }} 
+                format="YYYY-MM-DD"
+                allowClear
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item
-              name="completed"
-              label="完成状态"
+            <Form.Item 
+              name="completed" 
+              label="完成状态" 
               valuePropName="checked"
             >
-              <Switch checkedChildren="已完成" unCheckedChildren="未完成" />
+              <Switch 
+                checkedChildren="已完成" 
+                unCheckedChildren="未完成" 
+                style={{ width: '100%', height: '32px' }}
+              />
             </Form.Item>
           </Col>
         </Row>
         
+        {/* 任务预览 */}
         <TaskPreview />
       </Form>
     </Modal>

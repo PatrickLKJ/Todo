@@ -13,7 +13,7 @@ import {
   EditOutlined, DeleteOutlined, ClockCircleOutlined, FireOutlined,
   DragOutlined, ThunderboltOutlined, EyeOutlined, ShareAltOutlined,
   PrinterOutlined, BarChartOutlined, InfoCircleOutlined, SettingOutlined,
-  BellOutlined
+  BellOutlined, PushpinOutlined, TagOutlined, FlagOutlined
 } from '@ant-design/icons';
 import { getTasksByPage as listTasksByPage, deleteTask, updateTask } from '@/services/api/task';
 import { useModel, history } from 'umi';
@@ -101,6 +101,33 @@ const SortableTaskCard = ({ task, onEdit, onToggle, onDelete }: {
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: String(task.id) });
   
+  // 计算截止日期状态
+  const today = moment().format('YYYY-MM-DD');
+  const isDueToday = task.dueDate === today;
+  const isOverdue = !task.completed && task.dueDate && task.dueDate < today;
+  const isUpcoming = !task.completed && task.dueDate && task.dueDate > today;
+  
+  // 获取优先级颜色
+  const getPriorityColor = (priority: string) => {
+    switch(priority) {
+      case 'high': return '#f5222d';
+      case 'medium': return '#faad14';
+      case 'low': return '#52c41a';
+      default: return '#faad14';
+    }
+  };
+  
+  // 获取分类图标
+  const getCategoryIcon = (category: string) => {
+    switch(category) {
+      case 'work': return <PushpinOutlined />;
+      case 'study': return <ClockCircleOutlined />;
+      case 'life': return <TagOutlined />;
+      case 'other': return <FlagOutlined />;
+      default: return <TagOutlined />;
+    }
+  };
+  
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -113,32 +140,38 @@ const SortableTaskCard = ({ task, onEdit, onToggle, onDelete }: {
         hoverable
         style={{ 
           marginBottom: 16,
-          borderLeft: `3px solid ${task.priority === 'high' ? 'red' : task.priority === 'medium' ? 'orange' : 'green'}`,
-          opacity: task.completed ? 0.7 : 1,
+          borderRadius: '12px',
+          borderLeft: `3px solid ${getPriorityColor(task.priority || 'medium')}`,
+          opacity: task.completed ? 0.8 : 1,
           cursor: 'move',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.09)',
           transition: 'all 0.3s cubic-bezier(.25,.8,.25,1)',
+          overflow: 'hidden',
+          background: task.completed ? 'rgba(245, 245, 245, 0.7)' : 'white',
+        }}
+        bodyStyle={{
+          padding: '16px',
         }}
         actions={[
-          <Tooltip title="编辑">
-            <EditOutlined key="edit" onClick={(e) => {
+          <Tooltip key="edit" title="编辑">
+            <EditOutlined onClick={(e) => {
               if (e) e.stopPropagation();
               onEdit(task);
             }} />
           </Tooltip>,
-          <Tooltip title={task.completed ? "取消完成" : "标记完成"}>
+          <Tooltip key="toggle" title={task.completed ? "取消完成" : "标记完成"}>
             {task.completed ? 
-              <CloseCircleOutlined key="uncomplete" onClick={(e) => {
+              <CloseCircleOutlined onClick={(e) => {
                 if (e) e.stopPropagation();
                 onToggle(task);
               }} /> : 
-              <CheckCircleOutlined key="complete" onClick={(e) => {
+              <CheckCircleOutlined style={{ color: '#52c41a' }} onClick={(e) => {
                 if (e) e.stopPropagation();
                 onToggle(task);
               }} />
             }
           </Tooltip>,
-          <Tooltip title="删除">
+          <Tooltip key="delete" title="删除">
             <Popconfirm
               title="确定删除此任务吗?"
               onConfirm={(e) => {
@@ -146,20 +179,25 @@ const SortableTaskCard = ({ task, onEdit, onToggle, onDelete }: {
                 onDelete(task.id!);
               }}
             >
-              <DeleteOutlined key="delete" onClick={(e) => e && e.stopPropagation()} />
+              <DeleteOutlined style={{ color: '#ff4d4f' }} onClick={(e) => e && e.stopPropagation()} />
             </Popconfirm>
           </Tooltip>,
         ]}
-        extra={<DragOutlined style={{ cursor: 'move', color: '#999' }} />}
       >
         <div onClick={() => onEdit(task)}>
-          <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontWeight: 'bold', fontSize: 16, flex: 1 }}>
-              {task.completed ? <s>{task.title}</s> : task.title}
+          <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ 
+              fontWeight: 'bold', 
+              fontSize: 16, 
+              flex: 1,
+              textDecoration: task.completed ? 'line-through' : 'none',
+              color: task.completed ? '#8c8c8c' : 'inherit',
+            }}>
+              {task.title}
             </div>
-            <Space>
+            <Space align="start" style={{ marginLeft: 8 }}>
               {task.category && (
-                <Tag color="blue">
+                <Tag color="blue" icon={getCategoryIcon(task.category)}>
                   {task.category === 'work' ? '工作' : 
                    task.category === 'study' ? '学习' : 
                    task.category === 'life' ? '生活' : '其他'}
@@ -174,7 +212,7 @@ const SortableTaskCard = ({ task, onEdit, onToggle, onDelete }: {
           {task.description && (
             <div style={{ 
               marginBottom: 12, 
-              color: '#666', 
+              color: task.completed ? '#8c8c8c' : '#666', 
               maxHeight: '60px', 
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -186,23 +224,31 @@ const SortableTaskCard = ({ task, onEdit, onToggle, onDelete }: {
             </div>
           )}
           
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Space>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Space wrap size={4}>
               {task.dueDate && (
-                <span style={{ 
-                  color: (!task.completed && moment(task.dueDate).isBefore(moment(), 'day')) ? '#ff4d4f' : '#8c8c8c',
-                  fontSize: '12px' 
-                }}>
-                  <CalendarOutlined style={{ marginRight: 4 }} />
+                <Tag
+                  icon={<CalendarOutlined />}
+                  color={isOverdue ? 'error' : isDueToday ? 'warning' : 'default'}
+                >
                   {moment(task.dueDate).format('YYYY-MM-DD')}
-                  {(!task.completed && moment(task.dueDate).isBefore(moment(), 'day')) && ' (已逾期)'}
-                </span>
+                  {isOverdue && ' (已逾期)'}
+                  {isDueToday && ' (今日)'}
+                </Tag>
               )}
+              <Tag color={getPriorityColor(task.priority || 'medium')} style={{ opacity: 0.8 }}>
+                {task.priority === 'high' ? '高' : task.priority === 'medium' ? '中' : '低'}优先级
+              </Tag>
             </Space>
-            <Tag color={task.priority === 'high' ? 'red' : task.priority === 'medium' ? 'orange' : 'green'}>
-              {task.priority === 'high' ? '高优先级' : 
-               task.priority === 'medium' ? '中优先级' : '低优先级'}
-            </Tag>
+            
+            <div style={{ 
+              color: '#8c8c8c', 
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <DragOutlined style={{ marginLeft: 8 }} />
+            </div>
           </div>
         </div>
       </Card>
@@ -211,71 +257,147 @@ const SortableTaskCard = ({ task, onEdit, onToggle, onDelete }: {
 };
 
 // 统计卡片组件
-const StatisticsCards = ({ taskStats }: { taskStats: { total: number; completed: number; upcoming: number; overdue: number } }) => (
-  <Row gutter={16} style={{ marginBottom: 16 }}>
-    <Col xs={12} sm={12} md={6} lg={6}>
-      <Card hoverable style={{ borderRadius: '8px', overflow: 'hidden', height: '100%' }}>
-        <Statistic
-          title={<span><FireOutlined style={{ marginRight: 8 }} />任务总数</span>}
-          value={taskStats.total}
-          valueStyle={{ color: '#1890ff' }}
-        />
-        <div style={{ marginTop: 8 }}>
-          <Progress percent={100} showInfo={false} strokeColor="#1890ff" />
-        </div>
-      </Card>
-    </Col>
-    <Col xs={12} sm={12} md={6} lg={6}>
-      <Card hoverable style={{ borderRadius: '8px', overflow: 'hidden', height: '100%' }}>
-        <Statistic
-          title={<span><CheckCircleOutlined style={{ marginRight: 8 }} />已完成</span>}
-          value={taskStats.completed}
-          valueStyle={{ color: '#3f8600' }}
-          suffix={taskStats.total > 0 ? <span style={{ fontSize: '0.8em' }}>({(taskStats.completed * 100 / taskStats.total).toFixed(0)}%)</span> : null}
-        />
-        <div style={{ marginTop: 8 }}>
-          <Progress 
-            percent={taskStats.total > 0 ? Math.round(taskStats.completed * 100 / taskStats.total) : 0} 
-            showInfo={false} 
-            strokeColor="#3f8600" 
-          />
-        </div>
-      </Card>
-    </Col>
-    <Col xs={12} sm={12} md={6} lg={6}>
-      <Card hoverable style={{ borderRadius: '8px', overflow: 'hidden', height: '100%' }}>
-        <Statistic
-          title={<span><SyncOutlined style={{ marginRight: 8 }} />待完成</span>}
-          value={taskStats.upcoming}
-          valueStyle={{ color: '#1890ff' }}
-        />
-        <div style={{ marginTop: 8 }}>
-          <Progress 
-            percent={taskStats.total > 0 ? Math.round(taskStats.upcoming * 100 / taskStats.total) : 0} 
-            showInfo={false} 
-            strokeColor="#1890ff" 
-          />
-        </div>
-      </Card>
-    </Col>
-    <Col xs={12} sm={12} md={6} lg={6}>
-      <Card hoverable style={{ borderRadius: '8px', overflow: 'hidden', height: '100%' }}>
-        <Statistic
-          title={<span><ClockCircleOutlined style={{ marginRight: 8 }} />已逾期</span>}
-          value={taskStats.overdue}
-          valueStyle={{ color: '#cf1322' }}
-        />
-        <div style={{ marginTop: 8 }}>
-          <Progress 
-            percent={taskStats.total > 0 ? Math.round(taskStats.overdue * 100 / taskStats.total) : 0} 
-            showInfo={false} 
-            strokeColor="#cf1322" 
-          />
-        </div>
-      </Card>
-    </Col>
-  </Row>
-);
+const StatisticsCards = ({ taskStats }: { taskStats: { total: number; completed: number; upcoming: number; overdue: number } }) => {
+  return (
+    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Col xs={12} sm={6}>
+        <Card
+          style={{ 
+            borderRadius: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.09)',
+            height: '100%',
+            border: 'none',
+            overflow: 'hidden',
+            background: 'linear-gradient(135deg, #1890ff11 0%, #1890ff22 100%)',
+          }}
+          bodyStyle={{ padding: '20px' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ marginBottom: 8, fontSize: 14, color: 'rgba(0, 0, 0, 0.45)' }}>总任务数</div>
+              <div style={{ fontSize: 30, fontWeight: 'bold', color: '#1890ff', lineHeight: 1 }}>{taskStats.total}</div>
+            </div>
+            <div style={{
+              width: '50px',
+              height: '50px',
+              borderRadius: '25px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              background: '#1890ff',
+              color: '#fff',
+              fontSize: '24px'
+            }}>
+              <UnorderedListOutlined />
+            </div>
+          </div>
+        </Card>
+      </Col>
+      
+      <Col xs={12} sm={6}>
+        <Card
+          style={{ 
+            borderRadius: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.09)',
+            height: '100%',
+            border: 'none',
+            overflow: 'hidden',
+            background: 'linear-gradient(135deg, #52c41a11 0%, #52c41a22 100%)',
+          }}
+          bodyStyle={{ padding: '20px' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ marginBottom: 8, fontSize: 14, color: 'rgba(0, 0, 0, 0.45)' }}>已完成</div>
+              <div style={{ fontSize: 30, fontWeight: 'bold', color: '#52c41a', lineHeight: 1 }}>{taskStats.completed}</div>
+            </div>
+            <div style={{
+              width: '50px',
+              height: '50px',
+              borderRadius: '25px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              background: '#52c41a',
+              color: '#fff',
+              fontSize: '24px'
+            }}>
+              <CheckCircleOutlined />
+            </div>
+          </div>
+        </Card>
+      </Col>
+      
+      <Col xs={12} sm={6}>
+        <Card
+          style={{ 
+            borderRadius: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.09)',
+            height: '100%',
+            border: 'none',
+            overflow: 'hidden',
+            background: 'linear-gradient(135deg, #faad1411 0%, #faad1422 100%)',
+          }}
+          bodyStyle={{ padding: '20px' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ marginBottom: 8, fontSize: 14, color: 'rgba(0, 0, 0, 0.45)' }}>即将到期</div>
+              <div style={{ fontSize: 30, fontWeight: 'bold', color: '#faad14', lineHeight: 1 }}>{taskStats.upcoming}</div>
+            </div>
+            <div style={{
+              width: '50px',
+              height: '50px',
+              borderRadius: '25px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              background: '#faad14',
+              color: '#fff',
+              fontSize: '24px'
+            }}>
+              <CalendarOutlined />
+            </div>
+          </div>
+        </Card>
+      </Col>
+      
+      <Col xs={12} sm={6}>
+        <Card
+          style={{ 
+            borderRadius: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.09)',
+            height: '100%',
+            border: 'none',
+            overflow: 'hidden',
+            background: 'linear-gradient(135deg, #ff4d4f11 0%, #ff4d4f22 100%)',
+          }}
+          bodyStyle={{ padding: '20px' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ marginBottom: 8, fontSize: 14, color: 'rgba(0, 0, 0, 0.45)' }}>已逾期</div>
+              <div style={{ fontSize: 30, fontWeight: 'bold', color: '#ff4d4f', lineHeight: 1 }}>{taskStats.overdue}</div>
+            </div>
+            <div style={{
+              width: '50px',
+              height: '50px',
+              borderRadius: '25px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              background: '#ff4d4f',
+              color: '#fff',
+              fontSize: '24px'
+            }}>
+              <ClockCircleOutlined />
+            </div>
+          </div>
+        </Card>
+      </Col>
+    </Row>
+  );
+};
 
 // 任务分析组件
 const TaskAnalytics = ({ taskData }: { taskData: API.Task[] }) => {
@@ -1084,9 +1206,13 @@ const TaskList: React.FC = () => {
       <HelpModal />
       <StatisticsCards taskStats={taskStats} />
       
-      <Card style={{ margin: '0 0 16px 0' }}>
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col flex="auto">
+      <Card style={{ 
+        margin: '0 0 16px 0',
+        borderRadius: '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.09)'
+      }}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Col xs={24} md={12} lg={14} xl={16}>
             <Search
               placeholder="搜索任务标题或描述"
               value={searchText}
@@ -1094,50 +1220,70 @@ const TaskList: React.FC = () => {
               style={{ width: '100%' }}
               allowClear
               prefix={<SearchOutlined />}
+              size="middle"
             />
           </Col>
-          <Col>
+          <Col xs={12} md={6} lg={5} xl={4}>
             <Dropdown menu={{
               selectedKeys: filterPriority ? [filterPriority] : [],
               onClick: ({ key }) => setFilterPriority(key === 'all' ? null : key),
               items: [
-                { key: 'all', label: '全部优先级' },
-                { key: 'high', label: '高优先级', icon: <Badge color="red" /> },
-                { key: 'medium', label: '中优先级', icon: <Badge color="orange" /> },
-                { key: 'low', label: '低优先级', icon: <Badge color="green" /> }
+                { key: 'all', label: <span><FilterOutlined /> 全部优先级</span> },
+                { key: 'high', label: <span><Badge color="red" /> 高优先级</span> },
+                { key: 'medium', label: <span><Badge color="orange" /> 中优先级</span> },
+                { key: 'low', label: <span><Badge color="green" /> 低优先级</span> }
               ]
             }}>
-              <Button icon={<FilterOutlined />}>
-                优先级 {filterPriority ? `(${filterPriority === 'high' ? '高' : filterPriority === 'medium' ? '中' : '低'})` : ''}
+              <Button 
+                icon={<FilterOutlined />} 
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {filterPriority ? 
+                    (filterPriority === 'high' ? '高优先级' : 
+                     filterPriority === 'medium' ? '中优先级' : '低优先级') : 
+                    '优先级'}
+                </span>
               </Button>
             </Dropdown>
           </Col>
-          <Col>
+          <Col xs={12} md={6} lg={5} xl={4}>
             <Dropdown menu={{
               selectedKeys: filterCategory ? [filterCategory] : [],
               onClick: ({ key }) => setFilterCategory(key === 'all' ? null : key),
               items: [
-                { key: 'all', label: '全部分类' },
-                { key: 'work', label: '工作' },
-                { key: 'study', label: '学习' },
-                { key: 'life', label: '生活' },
-                { key: 'other', label: '其他' }
+                { key: 'all', label: <span><FilterOutlined /> 全部分类</span> },
+                { key: 'work', label: <span><PushpinOutlined /> 工作</span> },
+                { key: 'study', label: <span><ClockCircleOutlined /> 学习</span> },
+                { key: 'life', label: <span><TagOutlined /> 生活</span> },
+                { key: 'other', label: <span><FlagOutlined /> 其他</span> }
               ]
             }}>
-              <Button icon={<FilterOutlined />}>
-                分类 {filterCategory ? `(${categoryText[filterCategory as keyof typeof categoryText]})` : ''}
+              <Button 
+                icon={<FilterOutlined />}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {filterCategory ? categoryText[filterCategory as keyof typeof categoryText] : '分类'}
+                </span>
               </Button>
             </Dropdown>
           </Col>
         </Row>
         
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-          { key: 'all', label: '全部' },
-          { key: 'completed', label: <span><Badge status="success" />已完成</span> },
-          { key: 'uncompleted', label: <span><Badge status="default" />未完成</span> },
-          { key: 'upcoming', label: <span><Badge status="processing" />即将到期</span> },
-          { key: 'overdue', label: <span><Badge status="error" />已逾期</span> }
-        ]} />
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={setActiveTab} 
+          size="large"
+          type="card"
+          items={[
+            { key: 'all', label: <span><Badge status="processing" /> 全部</span> },
+            { key: 'completed', label: <span><Badge status="success" /> 已完成</span> },
+            { key: 'uncompleted', label: <span><Badge status="default" /> 未完成</span> },
+            { key: 'upcoming', label: <span><Badge status="processing" /> 即将到期</span> },
+            { key: 'overdue', label: <span><Badge status="error" /> 已逾期</span> }
+          ]} 
+        />
       </Card>
       
       {viewMode === 'table' ? (
