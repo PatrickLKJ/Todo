@@ -250,7 +250,14 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
                 name="dueDate"
                 label="截止日期"
               >
-                <DatePicker style={{ width: '100%' }} />
+                <DatePicker 
+                  style={{ width: '100%' }} 
+                  format="YYYY-MM-DD"
+                  disabledDate={(current) => {
+                    // 不禁用日期选择
+                    return false;
+                  }}
+                />
               </Form.Item>
             </Col>
             

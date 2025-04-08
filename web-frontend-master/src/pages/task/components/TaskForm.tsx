@@ -297,6 +297,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
                 style={{ width: '100%', borderRadius: '6px' }} 
                 format="YYYY-MM-DD"
                 allowClear
+                disabledDate={(current) => {
+                  // 不禁用任何日期，允许自由选择
+                  return false;
+                }}
               />
             </Form.Item>
           </Col>
