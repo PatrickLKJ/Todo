@@ -8,18 +8,29 @@ const Settings: LayoutSettings & {
   logo?: string;
 } = {
   navTheme: 'light',
-  // 拂晓蓝
-  colorPrimary: '#1890ff',
+  // 苹果蓝
+  colorPrimary: '#007AFF',
   layout: 'top',
   contentWidth: 'Fluid',
-  fixedHeader: false,
+  fixedHeader: true,
   fixSiderbar: true,
   colorWeak: false,
-  title: 'My Project',
+  title: 'Todo',
   pwa: false,
   logo: 'https://gw.alipayobjects.com/zos/rmsportal/KDpgvguMpGfqaHPjicRK.svg',
   iconfontUrl: '',
-  footerRender: false
+  footerRender: false,
+  headerHeight: 64,
+  splitMenus: false,
+  siderWidth: 208,
+  menu: {
+    locale: true,
+  },
+  header: {
+    height: 64,
+    padding: '0 24px',
+  },
+  pageTitle: false,
 };
 
 export default Settings;

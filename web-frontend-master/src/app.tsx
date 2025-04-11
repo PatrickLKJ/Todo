@@ -74,54 +74,39 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
         colorBgCollapsedButton: '#fff',
         colorTextCollapsedButtonHover: 'rgba(0,0,0,0.65)',
         colorTextCollapsedButton: 'rgba(0,0,0,0.45)',
-        colorMenuBackground: '#004FD9',
+        colorMenuBackground: '#fff',
         colorBgMenuItemCollapsedHover: 'rgba(0,0,0,0.06)',
         colorBgMenuItemCollapsedSelected: 'rgba(0,0,0,0.15)',
         colorBgMenuItemCollapsedElevated: 'rgba(0,0,0,0.85)',
-        colorMenuItemDivider: 'rgba(255,255,255,0.15)',
+        colorMenuItemDivider: 'rgba(0,0,0,0.06)',
         colorBgMenuItemHover: 'rgba(0,0,0,0.06)',
-        colorBgMenuItemSelected: 'rgba(0,0,0,0.15)',
-        colorTextMenuSelected: '#fff',
-        colorTextMenuItemHover: 'rgba(255,255,255,0.75)',
-        colorTextMenu: 'rgba(255,255,255,0.75)',
-        colorTextMenuSecondary: 'rgba(255,255,255,0.65)',
-        colorTextMenuTitle: 'rgba(255,255,255,0.95)',
-        colorTextMenuActive: 'rgba(255,255,255,0.95)',
-        colorTextSubMenuSelected: '#fff',
+        colorBgMenuItemSelected: 'rgba(0,122,255,0.1)',
+        colorTextMenuSelected: '#007AFF',
+        colorTextMenuItemHover: '#007AFF',
+        colorTextMenu: 'rgba(0,0,0,0.85)',
+        colorTextMenuSecondary: 'rgba(0,0,0,0.65)',
+        colorTextMenuTitle: 'rgba(0,0,0,0.85)',
+        colorTextMenuActive: '#007AFF',
+        colorTextSubMenuSelected: '#007AFF',
+      },
+      header: {
+        colorBgHeader: '#fff',
+        colorHeaderTitle: '#1d1d1f',
+        colorTextMenu: 'rgba(0,0,0,0.85)',
+        colorTextMenuSecondary: 'rgba(0,0,0,0.65)',
+        colorTextMenuSelected: '#007AFF',
+        colorBgMenuItemSelected: 'rgba(0,122,255,0.1)',
       },
     },
     rightContentRender: () => <RightContent />,
-    waterMarkProps: {
-      content: initialState?.currentToken?.userName,
-    },
     footerRender: () => <Footer />,
     onPageChange: () => {
       const { location } = history;
-      // 如果没有登录，重定向到 login
       if (!initialState?.currentToken && location.pathname !== loginPath) {
         history.push(loginPath);
       }
     },
-    layoutBgImgList: [
-      {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/D2LWSqNny4sAAAAAAAAAAAAAFl94AQBr',
-        left: 85,
-        bottom: 100,
-        height: '303px',
-      },
-      {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/C2TWRpJpiC0AAAAAAAAAAAAAFl94AQBr',
-        bottom: -68,
-        right: -45,
-        height: '303px',
-      },
-      {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/F6vSTbj8KpYAAAAAAAAAAAAAFl94AQBr',
-        bottom: 0,
-        left: 0,
-        width: '331px',
-      },
-    ],
+    layoutBgImgList: [],
     links: isDev
       ? [
           <a key="openapi" href="http://localhost:8080/swagger-ui.html" target="_blank">
@@ -131,11 +116,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
         ]
       : [],
     menuHeaderRender: undefined,
-    // 自定义 403 页面
-    // unAccessible: <div>unAccessible</div>,
-    // 增加一个 loading 的状态
     childrenRender: (children) => {
-      // if (initialState?.loading) return <PageLoading />;
       return (
         <>
           {children}
