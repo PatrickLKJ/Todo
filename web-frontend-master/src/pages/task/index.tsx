@@ -1532,6 +1532,15 @@ const TaskList: React.FC = () => {
             <Calendar 
               mode={calendarMode}
               dateCellRender={renderCalendarTasks}
+              onPanelChange={(date, mode) => {
+                console.log('日历面板变化:', date.format('YYYY-MM-DD'), mode);
+              }}
+              fullscreen={false}
+              style={{ 
+                background: '#fff',
+                padding: '12px',
+                borderRadius: '8px'
+              }}
             />
           </Spin>
         </Card>

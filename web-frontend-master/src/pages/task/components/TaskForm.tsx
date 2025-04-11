@@ -73,7 +73,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
         userId: Number(currentUserId),
         title: values.title.trim(),
         description: values.description ? values.description.trim() : '',
-        completed: values.completed === true ? true : false, // 确保是布尔值
+        completed: values.completed === true ? true : false,
         dueDate: values.dueDate ? moment(values.dueDate).format('YYYY-MM-DD') : undefined,
         priority: values.priority || 'medium',
         category: values.category || 'work'
@@ -297,9 +297,9 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
                 style={{ width: '100%', borderRadius: '6px' }} 
                 format="YYYY-MM-DD"
                 allowClear
-                disabledDate={(current) => {
-                  // 不禁用任何日期，允许自由选择
-                  return false;
+                showToday
+                onChange={(date, dateString) => {
+                  console.log('选择的日期:', date, dateString);
                 }}
               />
             </Form.Item>

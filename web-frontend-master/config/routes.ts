@@ -23,12 +23,6 @@ export default [
     ],
   },
   {
-    path: '/welcome',
-    name: 'welcome',
-    icon: 'smile',
-    component: './Welcome',
-  },
-  {
     path: '/base',
     name: 'base',
     icon: 'appstore',
@@ -87,7 +81,7 @@ export default [
   },
   {
     path: '/',
-    redirect: '/welcome',
+    redirect: '/task',
   },
   {
     path: '*',
