@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import redlib.backend.common.PageResult;
 import redlib.backend.dao.TaskMapper;
+import redlib.backend.dto.query.TaskQueryDTO;
 import redlib.backend.model.Task;
 import redlib.backend.model.Token;
 import redlib.backend.utils.ThreadContextHolder;
@@ -268,5 +269,56 @@ public class TaskService {
         }
         
         return count;
+    }
+    
+    /**
+     * 搜索任务
+     * @param queryDTO 搜索条件
+     * @return 任务列表
+     */
+    public List<Task> searchTasks(TaskQueryDTO queryDTO) {
+        // 获取当前登录用户
+        Token currentUser = ThreadContextHolder.getToken();
+        
+        // 如果不是管理员，只能搜索自己的任务
+        if (!isAdminUser(currentUser)) {
+            queryDTO.setUserId(currentUser.getUserId());
+        }
+        
+        return taskMapper.search(queryDTO);
+    }
+    
+    /**
+     * 分页搜索任务
+     * @param pageNum 页码
+     * @param pageSize 每页大小
+     * @param queryDTO 搜索条件
+     * @return 分页结果
+     */
+    public PageResult<Task> searchTasksByPage(int pageNum, int pageSize, TaskQueryDTO queryDTO) {
+        // 获取当前登录用户
+        Token currentUser = ThreadContextHolder.getToken();
+        
+        // 如果不是管理员，只能搜索自己的任务
+        if (!isAdminUser(currentUser)) {
+            queryDTO.setUserId(currentUser.getUserId());
+        }
+        
+        // 设置分页参数
+        PageHelper.startPage(pageNum, pageSize);
+        
+        // 执行搜索
+        List<Task> tasks = taskMapper.search(queryDTO);
+        
+        // 获取分页信息
+        PageInfo<Task> pageInfo = new PageInfo<>(tasks);
+        
+        // 构建返回结果
+        return new PageResult<>(
+            pageInfo.getList(),
+            pageInfo.getTotal(),
+            pageInfo.getPageNum(),
+            pageInfo.getPageSize()
+        );
     }
 }

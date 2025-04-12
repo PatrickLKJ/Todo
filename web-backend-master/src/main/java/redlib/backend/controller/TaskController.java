@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import redlib.backend.annotation.BackendModule;
 import redlib.backend.annotation.Privilege;
 import redlib.backend.common.PageResult;
+import redlib.backend.dto.query.TaskQueryDTO;
 import redlib.backend.model.Task;
 import redlib.backend.service.TaskService;
 import java.util.List;
@@ -118,6 +119,41 @@ public class TaskController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("获取用户任务失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 搜索任务
+     */
+    @PostMapping("/search")
+    @Privilege
+    public ResponseEntity<?> searchTasks(@RequestBody TaskQueryDTO queryDTO) {
+        try {
+            List<Task> tasks = taskService.searchTasks(queryDTO);
+            return ResponseEntity.ok(tasks);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("搜索任务失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 分页搜索任务
+     */
+    @PostMapping("/search/page")
+    @Privilege
+    public ResponseEntity<?> searchTasksByPage(
+            @RequestParam(value = "pageNum", defaultValue = "1") int pageNum,
+            @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
+            @RequestBody TaskQueryDTO queryDTO) {
+        try {
+            PageResult<Task> result = taskService.searchTasksByPage(pageNum, pageSize, queryDTO);
+            return ResponseEntity.ok(result);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("分页搜索任务失败: " + e.getMessage());
         }
     }
 }

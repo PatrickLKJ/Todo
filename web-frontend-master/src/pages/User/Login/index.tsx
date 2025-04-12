@@ -1,13 +1,15 @@
 import Footer from '@/components/Footer';
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { LockOutlined, UserOutlined, CheckCircleOutlined, CalendarOutlined } from '@ant-design/icons';
 import { LoginForm, ProFormCheckbox, ProFormText } from '@ant-design/pro-components';
 import { useEmotionCss } from '@ant-design/use-emotion-css';
 import { FormattedMessage, history, SelectLang, useIntl, useModel, Helmet } from '@umijs/max';
-import { message } from 'antd';
+import { message, Typography } from 'antd';
 import Settings from '../../../../config/defaultSettings';
 import React from 'react';
 import { flushSync } from 'react-dom';
 import { login } from '@/services/api/authentication';
+
+const { Title, Paragraph } = Typography;
 
 const Lang = () => {
   const langClassName = useEmotionCss(({ token }) => {
@@ -40,9 +42,39 @@ const Login: React.FC = () => {
       flexDirection: 'column',
       height: '100vh',
       overflow: 'auto',
-      backgroundImage:
-        "url('https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/V-_oS6r-i7wAAAAAAAAAAAAAFl94AQBr')",
+      backgroundImage: 'linear-gradient(to right, #4facfe 0%, #00f2fe 100%)',
       backgroundSize: '100% 100%',
+    };
+  });
+  
+  const loginCardClass = useEmotionCss(() => {
+    return {
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      borderRadius: '16px',
+      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+      padding: '40px 30px',
+      maxWidth: '450px',
+      width: '100%',
+      margin: '0 auto',
+    };
+  });
+  
+  const titleClass = useEmotionCss(() => {
+    return {
+      color: '#1890ff',
+      fontWeight: 'bold',
+      fontSize: '28px',
+      textAlign: 'center',
+      marginBottom: '20px',
+    };
+  });
+  
+  const subtitleClass = useEmotionCss(() => {
+    return {
+      color: '#666',
+      fontSize: '16px',
+      textAlign: 'center',
+      marginBottom: '30px',
     };
   });
 
@@ -72,7 +104,7 @@ const Login: React.FC = () => {
 
       // 修改判断逻辑：检查响应中是否有accessToken字段
       if (response && response.accessToken) {
-        const defaultLoginSuccessMessage = '登录成功！';
+        const defaultLoginSuccessMessage = '登录成功！准备开始您的任务管理之旅';
         message.success(defaultLoginSuccessMessage);
         
         // 保存登录凭证
@@ -102,11 +134,7 @@ const Login: React.FC = () => {
     <div className={containerClassName}>
       <Helmet>
         <title>
-          {intl.formatMessage({
-            id: 'menu.login',
-            defaultMessage: '登录页',
-          })}
-          - {Settings.title}
+          登录 - 高效任务清单
         </title>
       </Helmet>
       <Lang />
@@ -114,85 +142,100 @@ const Login: React.FC = () => {
         style={{
           flex: '1',
           padding: '32px 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        <LoginForm
-          contentStyle={{
-            minWidth: 280,
-            maxWidth: '75vw',
-          }}
-          logo={<img alt="logo" src="/logo.svg" />}
-          title="Ant Design"
-          subTitle={intl.formatMessage({ id: 'pages.layouts.userLayout.title' })}
-          initialValues={{
-            autoLogin: true,
-          }}
-          onFinish={async (values) => {
-            await handleSubmit(values);
-          }}
-        >
-          <ProFormText
-            name="username"
-            fieldProps={{
-              size: 'large',
-              prefix: <UserOutlined />,
+        <div className={loginCardClass}>
+          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+            <div style={{ fontSize: '60px', marginBottom: '10px', color: '#1890ff' }}>
+              <CheckCircleOutlined style={{ marginRight: '10px' }} />
+              <CalendarOutlined />
+            </div>
+            <div className={titleClass}>高效任务清单</div>
+            <div className={subtitleClass}>规划、跟踪、完成——掌控每一个任务</div>
+          </div>
+          
+          <LoginForm
+            contentStyle={{
+              minWidth: 280,
+              maxWidth: '100%',
             }}
-            placeholder={intl.formatMessage({
-              id: 'pages.login.username.placeholder',
-              defaultMessage: '用户名: admin or user',
-            })}
-            rules={[
-              {
-                required: true,
-                message: (
-                  <FormattedMessage
-                    id="pages.login.username.required"
-                    defaultMessage="请输入用户名!"
-                  />
-                ),
+            submitter={{
+              searchConfig: {
+                submitText: '登录并开始规划',
               },
-            ]}
-          />
-          <ProFormText.Password
-            name="password"
-            fieldProps={{
-              size: 'large',
-              prefix: <LockOutlined />,
+              submitButtonProps: {
+                size: 'large',
+                style: {
+                  width: '100%',
+                  height: '46px',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(90deg, #1890ff 0%, #52c41a 100%)',
+                },
+              },
             }}
-            placeholder={intl.formatMessage({
-              id: 'pages.login.password.placeholder',
-              defaultMessage: '密码: ant.design',
-            })}
-            rules={[
-              {
-                required: true,
-                message: (
-                  <FormattedMessage
-                    id="pages.login.password.required"
-                    defaultMessage="请输入密码！"
-                  />
-                ),
-              },
-            ]}
-          />
-
-          <div
-            style={{
-              marginBottom: 24,
+            initialValues={{
+              autoLogin: true,
+            }}
+            onFinish={async (values) => {
+              await handleSubmit(values);
             }}
           >
-            <ProFormCheckbox noStyle name="autoLogin">
-              <FormattedMessage id="pages.login.rememberMe" defaultMessage="自动登录" />
-            </ProFormCheckbox>
-            <a
+            <ProFormText
+              name="username"
+              fieldProps={{
+                size: 'large',
+                prefix: <UserOutlined />,
+              }}
+              placeholder="请输入用户名"
+              rules={[
+                {
+                  required: true,
+                  message: "请输入用户名",
+                },
+              ]}
+            />
+            <ProFormText.Password
+              name="password"
+              fieldProps={{
+                size: 'large',
+                prefix: <LockOutlined />,
+              }}
+              placeholder="请输入密码"
+              rules={[
+                {
+                  required: true,
+                  message: "请输入密码",
+                },
+              ]}
+            />
+
+            <div
               style={{
-                float: 'right',
+                marginBottom: 24,
+                display: 'flex',
+                justifyContent: 'space-between',
               }}
             >
-              <FormattedMessage id="pages.login.forgotPassword" defaultMessage="忘记密码" />
-            </a>
-          </div>
-        </LoginForm>
+              <ProFormCheckbox noStyle name="autoLogin">
+                记住我
+              </ProFormCheckbox>
+              <a
+                style={{
+                  color: '#1890ff',
+                }}
+              >
+                忘记密码
+              </a>
+            </div>
+            
+            <div style={{ marginTop: '20px', textAlign: 'center', color: '#888', fontSize: '14px' }}>
+              <p>开始管理您的任务，提高工作效率</p>
+            </div>
+          </LoginForm>
+        </div>
       </div>
       <Footer />
     </div>

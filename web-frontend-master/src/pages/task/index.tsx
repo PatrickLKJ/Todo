@@ -4,7 +4,7 @@ import { ActionType, ProColumns, ProTable } from '@ant-design/pro-components';
 import { 
   Button, Tag, Popconfirm, message, Card, Row, Col, Statistic, Space, 
   Progress, Badge, Tabs, Input, Empty, Dropdown, Menu, Tooltip, Avatar,
-  Calendar, List, Typography, Spin, Modal, Skeleton, Radio
+  List, Typography, Spin, Modal, Skeleton, Radio, Form, Select, DatePicker
 } from 'antd';
 import { 
   PlusOutlined, CheckCircleOutlined, CloseCircleOutlined, CalendarOutlined,
@@ -15,13 +15,12 @@ import {
   PrinterOutlined, BarChartOutlined, InfoCircleOutlined, SettingOutlined,
   BellOutlined, PushpinOutlined, TagOutlined, FlagOutlined
 } from '@ant-design/icons';
-import { getTasksByPage as listTasksByPage, deleteTask, updateTask } from '@/services/api/task';
+import { getTasksByPage as listTasksByPage, deleteTask, updateTask, searchTasksByPage } from '@/services/api/task';
 import { useModel, history } from 'umi';
 import TaskForm from './components/TaskForm';
 import { convertPageData } from '@/utils/request';
 import moment from 'moment';
 import type { Moment } from 'moment';
-import type { Dayjs } from 'dayjs';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -535,7 +534,7 @@ const TaskList: React.FC = () => {
   const [formVisible, setFormVisible] = useState<boolean>(false);
   const [currentTask, setCurrentTask] = useState<API.Task | undefined>(undefined);
   const { initialState } = useModel('@@initialState');
-  const [viewMode, setViewMode] = useState<'table' | 'card' | 'calendar'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   const [activeTab, setActiveTab] = useState<string>('all');
   const [searchText, setSearchText] = useState<string>('');
   const [filterPriority, setFilterPriority] = useState<string | null>(null);
@@ -550,9 +549,10 @@ const TaskList: React.FC = () => {
     overdue: 0,
   });
   const [loading, setLoading] = useState<boolean>(false);
-  const [calendarMode, setCalendarMode] = useState<'month' | 'year'>('month');
   const [helpModalVisible, setHelpModalVisible] = useState<boolean>(false);
   const [tableLoading, setTableLoading] = useState<boolean>(false);
+  const [searchParams, setSearchParams] = useState<API.TaskQueryDTO>({});
+  const [advancedSearchVisible, setAdvancedSearchVisible] = useState(false);
   
   // 获取当前用户信息
   const currentToken = initialState?.currentToken;
@@ -611,6 +611,126 @@ const TaskList: React.FC = () => {
     life: '生活',
     other: '其他',
   };
+  
+  // 表格列定义
+  const columns: ProColumns<API.Task>[] = [
+    {
+      title: '标题',
+      dataIndex: 'title',
+      render: (_, record) => (
+        <Space>
+          {record.priority && (
+            <Badge color={priorityColors[record.priority as keyof typeof priorityColors]} />
+          )}
+          <a onClick={() => {
+            setCurrentTask(record);
+            setFormVisible(true);
+          }}>
+            {record.completed ? <s>{record.title}</s> : record.title}
+          </a>
+          {record.completed && (
+            <Tag color="green" icon={<CheckCircleOutlined />}>已完成</Tag>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      ellipsis: true,
+      hideInSearch: true,
+    },
+    {
+      title: '分类',
+      dataIndex: 'category',
+      render: (_, record) => (
+        record.category && (
+          <Tag color="blue">
+            {categoryText[record.category as keyof typeof categoryText]}
+          </Tag>
+        )
+      ),
+      hideInSearch: true,
+    },
+    {
+      title: '优先级',
+      dataIndex: 'priority',
+      render: (_, record) => {
+        const priority = record.priority as keyof typeof priorityColors;
+        return priority ? (
+          <Tag color={priorityColors[priority]}>
+            {priority === 'high' ? '高' : 
+             priority === 'medium' ? '中' : '低'}
+          </Tag>
+        ) : null;
+      },
+      hideInSearch: true,
+    },
+    {
+      title: '状态',
+      dataIndex: 'completed',
+      render: (_, record) => (
+        <a onClick={() => toggleTaskStatus(record)}>
+          {record.completed ? 
+            <Badge status="success" text="已完成" /> : 
+            <Badge status="default" text="未完成" />}
+        </a>
+      ),
+      hideInSearch: true,
+    },
+    {
+      title: '截止日期',
+      dataIndex: 'dueDate',
+      valueType: 'date',
+      render: (_, record) => {
+        if (!record.dueDate) return '-';
+        
+        const dueDate = moment(record.dueDate);
+        const today = moment();
+        const isOverdue = !record.completed && dueDate.isBefore(today, 'day');
+        
+        return (
+          <span style={{ color: isOverdue ? '#ff4d4f' : 'inherit' }}>
+            {isOverdue ? <ClockCircleOutlined style={{ marginRight: 4 }} /> : null}
+            {dueDate.format('YYYY-MM-DD')}
+          </span>
+        );
+      },
+      hideInSearch: true,
+    },
+    {
+      title: '操作',
+      dataIndex: 'option',
+      valueType: 'option',
+      render: (_, record) => [
+        <Tooltip title="编辑" key="edit">
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setCurrentTask(record);
+              setFormVisible(true);
+            }}
+          />
+        </Tooltip>,
+        <Tooltip title="完成/取消完成" key="toggle">
+          <Button
+            type="text"
+            icon={record.completed ? <CloseCircleOutlined /> : <CheckCircleOutlined />}
+            onClick={() => toggleTaskStatus(record)}
+          />
+        </Tooltip>,
+        <Tooltip title="删除" key="delete">
+          <Popconfirm
+            title="确定删除此任务吗?"
+            onConfirm={() => handleDelete(record.id!)}
+          >
+            <Button type="text" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Tooltip>,
+      ],
+    },
+  ];
   
   // 过滤和搜索任务
   const getFilteredTasks = () => {
@@ -818,241 +938,6 @@ const TaskList: React.FC = () => {
     }
   };
 
-  // 渲染任务日历
-  const renderCalendarTasks = (date: Dayjs | Moment) => {
-    // 统一使用moment格式化日期
-    const dateStr = moment(date.toString()).format('YYYY-MM-DD');
-    // 先获取当天的所有任务，然后应用筛选条件
-    const allDayTasks = taskData.filter(task => task.dueDate === dateStr);
-    
-    // 应用筛选条件 - 与getFilteredTasks保持一致
-    let filteredDayTasks = [...allDayTasks];
-    
-    // 按选项卡过滤
-    if (activeTab !== 'all') {
-      const today = moment().format('YYYY-MM-DD');
-      
-      if (activeTab === 'completed') {
-        filteredDayTasks = filteredDayTasks.filter(task => task.completed);
-      } else if (activeTab === 'uncompleted') {
-        filteredDayTasks = filteredDayTasks.filter(task => !task.completed);
-      } else if (activeTab === 'upcoming') {
-        filteredDayTasks = filteredDayTasks.filter(task => !task.completed && task.dueDate && task.dueDate > today);
-      } else if (activeTab === 'overdue') {
-        filteredDayTasks = filteredDayTasks.filter(task => !task.completed && task.dueDate && task.dueDate < today);
-      }
-    }
-    
-    // 按搜索文本过滤
-    if (searchText) {
-      const lowerSearch = searchText.toLowerCase();
-      filteredDayTasks = filteredDayTasks.filter(task => 
-        (task.title && task.title.toLowerCase().includes(lowerSearch)) ||
-        (task.description && task.description.toLowerCase().includes(lowerSearch))
-      );
-    }
-    
-    // 按优先级过滤
-    if (filterPriority) {
-      filteredDayTasks = filteredDayTasks.filter(task => task.priority === filterPriority);
-    }
-    
-    // 按分类过滤
-    if (filterCategory) {
-      filteredDayTasks = filteredDayTasks.filter(task => task.category === filterCategory);
-    }
-    
-    if (filteredDayTasks.length === 0) {
-      return null;
-    }
-    
-    return (
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {filteredDayTasks.slice(0, 2).map(task => (
-          <li key={task.id}>
-            <Tag
-              color={task.completed ? 'green' : task.priority === 'high' ? 'red' : task.priority === 'medium' ? 'orange' : 'green'}
-              style={{ margin: '2px 0', width: '100%', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-              onClick={() => {
-                setCurrentTask(task);
-                setFormVisible(true);
-              }}
-            >
-              {task.completed ? <CheckCircleOutlined /> : null} {task.title}
-            </Tag>
-          </li>
-        ))}
-        {filteredDayTasks.length > 2 && (
-          <li>
-            <Button 
-              type="link" 
-              size="small" 
-              onClick={() => {
-                Modal.info({
-                  title: `${dateStr} 的所有任务`,
-                  content: (
-                    <List
-                      size="small"
-                      dataSource={filteredDayTasks}
-                      renderItem={task => (
-                        <List.Item 
-                          actions={[
-                            <a onClick={() => {
-                              Modal.destroyAll();
-                              setCurrentTask(task);
-                              setFormVisible(true);
-                            }}>编辑</a>
-                          ]}
-                        >
-                          <List.Item.Meta
-                            avatar={
-                              <Avatar 
-                                style={{ 
-                                  backgroundColor: task.completed ? 'green' : 
-                                                  task.priority === 'high' ? 'red' : 
-                                                  task.priority === 'medium' ? 'orange' : 'green' 
-                                }} 
-                                icon={task.completed ? <CheckCircleOutlined /> : <ClockCircleOutlined />} 
-                              />
-                            }
-                            title={task.title}
-                            description={`${categoryText[task.category as keyof typeof categoryText]} · ${task.completed ? '已完成' : '未完成'}`}
-                          />
-                        </List.Item>
-                      )}
-                    />
-                  ),
-                  width: 600,
-                });
-              }}
-            >
-              还有 {filteredDayTasks.length - 2} 项任务...
-            </Button>
-          </li>
-        )}
-      </ul>
-    );
-  };
-  
-  const columns: ProColumns<API.Task>[] = [
-    {
-      title: '标题',
-      dataIndex: 'title',
-      render: (_, record) => (
-        <Space>
-          {record.priority && (
-            <Badge color={priorityColors[record.priority as keyof typeof priorityColors]} />
-          )}
-          <a onClick={() => {
-            setCurrentTask(record);
-            setFormVisible(true);
-          }}>
-            {record.completed ? <s>{record.title}</s> : record.title}
-          </a>
-          {record.completed && (
-            <Tag color="green" icon={<CheckCircleOutlined />}>已完成</Tag>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      ellipsis: true,
-      hideInSearch: true,
-    },
-    {
-      title: '分类',
-      dataIndex: 'category',
-      render: (_, record) => (
-        record.category && (
-          <Tag color="blue">
-            {categoryText[record.category as keyof typeof categoryText]}
-          </Tag>
-        )
-      ),
-      hideInSearch: true,
-    },
-    {
-      title: '优先级',
-      dataIndex: 'priority',
-      render: (_, record) => {
-        const priority = record.priority as keyof typeof priorityColors;
-        return priority ? (
-          <Tag color={priorityColors[priority]}>
-            {priority === 'high' ? '高' : 
-             priority === 'medium' ? '中' : '低'}
-          </Tag>
-        ) : null;
-      },
-      hideInSearch: true,
-    },
-    {
-      title: '状态',
-      dataIndex: 'completed',
-      render: (_, record) => (
-        <a onClick={() => toggleTaskStatus(record)}>
-          {record.completed ? 
-            <Badge status="success" text="已完成" /> : 
-            <Badge status="default" text="未完成" />}
-        </a>
-      ),
-      hideInSearch: true,
-    },
-    {
-      title: '截止日期',
-      dataIndex: 'dueDate',
-      valueType: 'date',
-      render: (_, record) => {
-        if (!record.dueDate) return '-';
-        
-        const dueDate = moment(record.dueDate);
-        const today = moment();
-        const isOverdue = !record.completed && dueDate.isBefore(today, 'day');
-        
-        return (
-          <span style={{ color: isOverdue ? '#ff4d4f' : 'inherit' }}>
-            {isOverdue ? <ClockCircleOutlined style={{ marginRight: 4 }} /> : null}
-            {dueDate.format('YYYY-MM-DD')}
-          </span>
-        );
-      },
-      hideInSearch: true,
-    },
-    {
-      title: '操作',
-      dataIndex: 'option',
-      valueType: 'option',
-      render: (_, record) => [
-        <Tooltip title="编辑" key="edit">
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setCurrentTask(record);
-              setFormVisible(true);
-            }}
-          />
-        </Tooltip>,
-        <Tooltip title="完成/取消完成" key="toggle">
-          <Button
-            type="text"
-            icon={record.completed ? <CloseCircleOutlined /> : <CheckCircleOutlined />}
-            onClick={() => toggleTaskStatus(record)}
-          />
-        </Tooltip>,
-        <Tooltip title="删除" key="delete">
-          <Popconfirm
-            title="确定删除此任务吗?"
-            onConfirm={() => handleDelete(record.id!)}
-          >
-            <Button type="text" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Tooltip>,
-      ],
-    },
-  ];
-
   // 卡片视图拖拽处理
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -1115,7 +1000,6 @@ const TaskList: React.FC = () => {
           <ul>
             <li><strong>表格视图</strong>：以表格形式展示任务，便于查看详细信息</li>
             <li><strong>卡片视图</strong>：以卡片形式展示任务，直观且可拖拽排序</li>
-            <li><strong>日历视图</strong>：按日期查看任务，帮助规划日程</li>
           </ul>
         </Paragraph>
         
@@ -1146,6 +1030,172 @@ const TaskList: React.FC = () => {
     }
   }, []);
   
+  // 处理搜索
+  const handleSearch = async (params: API.TaskQueryDTO) => {
+    // 判断是否为清空搜索
+    const isEmptySearch = !params.keyword && params.completed === undefined && 
+      !params.priority && !params.category && !params.dueDateStart && !params.dueDateEnd;
+    
+    if (isEmptySearch) {
+      console.log('清空搜索条件，显示全部任务');
+      setSearchParams({});
+    } else {
+      setSearchParams(params);
+    }
+    
+    // 重新加载表格数据
+    if (actionRef.current) {
+      actionRef.current.reload();
+    } else {
+      setLoading(true);
+      try {
+        let result;
+        
+        if (isEmptySearch) {
+          // 如果是空搜索，使用常规方法加载任务
+          result = await listTasksByPage({
+            pageNum: 1,
+            pageSize: 10,
+            userId: currentUserId
+          });
+        } else {
+          // 有搜索条件，使用搜索API
+          result = await searchTasksByPage(
+            {
+              pageNum: 1,
+              pageSize: 10,
+            },
+            params
+          );
+        }
+        
+        if (result && result.list) {
+          // 保存原始搜索结果，卡片视图中会通过getFilteredTasks进一步筛选
+          setTaskData(result.list);
+          
+          // 更新统计数据
+          setTaskStats({
+            total: result.total,
+            completed: result.list.filter((task: API.Task) => task.completed).length,
+            upcoming: result.list.filter((task: API.Task) => !task.completed && task.dueDate && moment(task.dueDate).isAfter(moment())).length,
+            overdue: result.list.filter((task: API.Task) => !task.completed && task.dueDate && moment(task.dueDate).isBefore(moment())).length,
+          });
+        }
+      } catch (error) {
+        message.error(isEmptySearch ? '加载任务失败' : '搜索任务失败');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+  
+  // 处理搜索框内容变化
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // 如果搜索框被清空，重新加载全部任务
+    if (!value) {
+      handleSearch({});
+    }
+  };
+
+  // 处理高级搜索
+  const handleAdvancedSearch = (values: {
+    keyword?: string;
+    completed?: boolean;
+    priority?: string;
+    category?: string;
+    dateRange?: [Moment, Moment];
+  }) => {
+    const params: API.TaskQueryDTO = {
+      ...values,
+      dueDateStart: values.dateRange?.[0]?.format('YYYY-MM-DD'),
+      dueDateEnd: values.dateRange?.[1]?.format('YYYY-MM-DD'),
+    };
+    delete (params as any).dateRange;
+    handleSearch(params);
+    setAdvancedSearchVisible(false);
+  };
+  
+  // 渲染搜索栏
+  const renderSearchBar = () => (
+    <div style={{ marginBottom: 16 }}>
+      <Row gutter={16}>
+        <Col span={8}>
+          <Search
+            placeholder="搜索任务标题或描述"
+            allowClear
+            enterButton
+            onChange={handleSearchInputChange}
+            onSearch={(value) => handleSearch({ keyword: value })}
+            onClear={() => handleSearch({})}
+            style={{ width: '100%' }}
+          />
+        </Col>
+        <Col span={4}>
+          <Button
+            type="primary"
+            icon={<FilterOutlined />}
+            onClick={() => setAdvancedSearchVisible(true)}
+          >
+            高级搜索
+          </Button>
+        </Col>
+      </Row>
+    </div>
+  );
+  
+  // 渲染高级搜索表单
+  const renderAdvancedSearch = () => (
+    <Modal
+      title="高级搜索"
+      visible={advancedSearchVisible}
+      onCancel={() => setAdvancedSearchVisible(false)}
+      footer={null}
+    >
+      <Form
+        layout="vertical"
+        onFinish={handleAdvancedSearch}
+        initialValues={searchParams}
+      >
+        <Form.Item name="keyword" label="关键词">
+          <Input placeholder="搜索任务标题或描述" />
+        </Form.Item>
+        <Form.Item name="completed" label="任务状态">
+          <Select allowClear>
+            <Select.Option value={true}>已完成</Select.Option>
+            <Select.Option value={false}>未完成</Select.Option>
+          </Select>
+        </Form.Item>
+        <Form.Item name="priority" label="优先级">
+          <Select allowClear>
+            <Select.Option value="high">高</Select.Option>
+            <Select.Option value="medium">中</Select.Option>
+            <Select.Option value="low">低</Select.Option>
+          </Select>
+        </Form.Item>
+        <Form.Item name="category" label="分类">
+          <Select allowClear>
+            <Select.Option value="work">工作</Select.Option>
+            <Select.Option value="study">学习</Select.Option>
+            <Select.Option value="life">生活</Select.Option>
+            <Select.Option value="other">其他</Select.Option>
+          </Select>
+        </Form.Item>
+        <Form.Item name="dateRange" label="截止日期范围">
+          <DatePicker.RangePicker style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item>
+          <Button type="primary" htmlType="submit" style={{ marginRight: 8 }}>
+            搜索
+          </Button>
+          <Button onClick={() => setAdvancedSearchVisible(false)}>
+            取消
+          </Button>
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+  
   return (
     <PageContainer
       extra={[
@@ -1171,22 +1221,12 @@ const TaskList: React.FC = () => {
               icon: <AppstoreOutlined />,
               label: '卡片视图',
               onClick: () => setViewMode('card')
-            },
-            {
-              key: 'calendar',
-              icon: <CalendarOutlined />,
-              label: '日历视图',
-              onClick: () => setViewMode('calendar')
             }
           ]
         }} key="viewToggle">
           <Button>
-            {viewMode === 'table' ? <UnorderedListOutlined /> : 
-             viewMode === 'card' ? <AppstoreOutlined /> : 
-             <CalendarOutlined />}
-            {viewMode === 'table' ? ' 表格视图' : 
-             viewMode === 'card' ? ' 卡片视图' : 
-             ' 日历视图'}
+            {viewMode === 'table' ? <UnorderedListOutlined /> : <AppstoreOutlined />}
+            {viewMode === 'table' ? ' 表格视图' : ' 卡片视图'}
             <SettingOutlined style={{ marginLeft: 8 }} />
           </Button>
         </Dropdown>,
@@ -1206,73 +1246,14 @@ const TaskList: React.FC = () => {
       <HelpModal />
       <StatisticsCards taskStats={taskStats} />
       
+      {renderSearchBar()}
+      {renderAdvancedSearch()}
+      
       <Card style={{ 
         margin: '0 0 16px 0',
         borderRadius: '12px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.09)'
       }}>
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} md={12} lg={14} xl={16}>
-            <Search
-              placeholder="搜索任务标题或描述"
-              value={searchText}
-              onChange={e => setSearchText(e.target.value)}
-              onSearch={value => setSearchText(value)}
-              style={{ width: '100%' }}
-              allowClear
-              enterButton
-              prefix={<SearchOutlined />}
-              size="middle"
-            />
-          </Col>
-          <Col xs={12} md={6} lg={5} xl={4}>
-            <Dropdown menu={{
-              selectedKeys: filterPriority ? [filterPriority] : [],
-              onClick: ({ key }) => setFilterPriority(key === 'all' ? null : key),
-              items: [
-                { key: 'all', label: <span><FilterOutlined /> 全部优先级</span> },
-                { key: 'high', label: <span><Badge color="red" /> 高优先级</span> },
-                { key: 'medium', label: <span><Badge color="orange" /> 中优先级</span> },
-                { key: 'low', label: <span><Badge color="green" /> 低优先级</span> }
-              ]
-            }}>
-              <Button 
-                icon={<FilterOutlined />} 
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-              >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {filterPriority ? 
-                    (filterPriority === 'high' ? '高优先级' : 
-                     filterPriority === 'medium' ? '中优先级' : '低优先级') : 
-                    '优先级'}
-                </span>
-              </Button>
-            </Dropdown>
-          </Col>
-          <Col xs={12} md={6} lg={5} xl={4}>
-            <Dropdown menu={{
-              selectedKeys: filterCategory ? [filterCategory] : [],
-              onClick: ({ key }) => setFilterCategory(key === 'all' ? null : key),
-              items: [
-                { key: 'all', label: <span><FilterOutlined /> 全部分类</span> },
-                { key: 'work', label: <span><PushpinOutlined /> 工作</span> },
-                { key: 'study', label: <span><ClockCircleOutlined /> 学习</span> },
-                { key: 'life', label: <span><TagOutlined /> 生活</span> },
-                { key: 'other', label: <span><FlagOutlined /> 其他</span> }
-              ]
-            }}>
-              <Button 
-                icon={<FilterOutlined />}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-              >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {filterCategory ? categoryText[filterCategory as keyof typeof categoryText] : '分类'}
-                </span>
-              </Button>
-            </Dropdown>
-          </Col>
-        </Row>
-        
         <Tabs 
           activeKey={activeTab} 
           onChange={setActiveTab} 
@@ -1379,7 +1360,7 @@ const TaskList: React.FC = () => {
             showQuickJumper: true,
             pageSize: 10,
           }}
-          request={async (params) => {
+          request={async (params, sort, filter) => {
             const { current, pageSize, ...rest } = params;
             // 如果当前用户ID为空，提前返回空数据，避免无效请求
             if (!currentUserId) {
@@ -1387,68 +1368,126 @@ const TaskList: React.FC = () => {
               return { data: [], total: 0, success: false };
             }
             
-            const pageParams = {
-              pageNum: current || 1,
-              pageSize: pageSize || 10,
-              // 只有管理员才可以传递指定的userId参数，否则使用当前用户ID
-              userId: isAdmin ? (rest.userId || currentUserId) : currentUserId,
-              ...rest
-            };
-            
-            console.log('任务查询参数:', pageParams);
-            
             try {
               setLoading(true);
-              const result = await listTasksByPage(pageParams);
               
-              console.log('查询结果:', result);
-              
-              // 处理数据加载
-              if (result && result.list) {
-                console.log('加载任务列表:', result.list.length, '条数据');
-                let filteredList = [...result.list];
+              // 检查是否有搜索参数
+              if (Object.keys(searchParams).length > 0 && 
+                  (searchParams.keyword || searchParams.completed !== undefined || 
+                   searchParams.priority || searchParams.category || 
+                   searchParams.dueDateStart || searchParams.dueDateEnd)) {
+                console.log('使用搜索参数加载数据:', searchParams);
                 
-                // 根据选项卡过滤
-                if (activeTab !== 'all') {
-                  const today = moment().format('YYYY-MM-DD');
+                // 使用搜索API
+                const searchResult = await searchTasksByPage(
+                  {
+                    pageNum: current || 1,
+                    pageSize: pageSize || 10,
+                  },
+                  searchParams
+                );
+                
+                console.log('搜索结果:', searchResult);
+                
+                if (searchResult && searchResult.list) {
+                  // 更新原始数据
+                  let filteredList = [...searchResult.list];
                   
-                  if (activeTab === 'completed') {
-                    filteredList = filteredList.filter(task => task.completed);
-                  } else if (activeTab === 'uncompleted') {
-                    filteredList = filteredList.filter(task => !task.completed);
-                  } else if (activeTab === 'upcoming') {
-                    filteredList = filteredList.filter(task => !task.completed && task.dueDate && task.dueDate > today);
-                  } else if (activeTab === 'overdue') {
-                    filteredList = filteredList.filter(task => !task.completed && task.dueDate && task.dueDate < today);
+                  // 应用选项卡筛选
+                  if (activeTab !== 'all') {
+                    const today = moment().format('YYYY-MM-DD');
+                    
+                    if (activeTab === 'completed') {
+                      filteredList = filteredList.filter(task => task.completed);
+                    } else if (activeTab === 'uncompleted') {
+                      filteredList = filteredList.filter(task => !task.completed);
+                    } else if (activeTab === 'upcoming') {
+                      filteredList = filteredList.filter(task => !task.completed && task.dueDate && task.dueDate > today);
+                    } else if (activeTab === 'overdue') {
+                      filteredList = filteredList.filter(task => !task.completed && task.dueDate && task.dueDate < today);
+                    }
                   }
+                  
+                  // 保存数据前进行筛选
+                  handleDataLoaded(searchResult.list); // 保存原始搜索结果用于卡片视图
+                  
+                  // 返回筛选后的数据给表格
+                  return {
+                    data: filteredList,
+                    success: true,
+                    total: searchResult.total || searchResult.list.length
+                  };
+                } else {
+                  console.warn('搜索结果中没有list字段');
+                  return {
+                    data: [],
+                    total: 0,
+                    success: false,
+                  };
                 }
-                
-                // 根据优先级过滤
-                if (filterPriority) {
-                  filteredList = filteredList.filter(task => task.priority === filterPriority);
-                }
-                
-                // 根据分类过滤
-                if (filterCategory) {
-                  filteredList = filteredList.filter(task => task.category === filterCategory);
-                }
-                
-                // 更新过滤后的数据
-                handleDataLoaded(filteredList);
-                
-                // 返回过滤后的数据给ProTable
-                return {
-                  data: filteredList,
-                  success: true,
-                  total: filteredList.length
-                };
               } else {
-                console.warn('查询结果中没有list字段');
-                return {
-                  data: [],
-                  total: 0,
-                  success: false,
+                // 无搜索参数时，使用普通的分页查询
+                const pageParams = {
+                  pageNum: current || 1,
+                  pageSize: pageSize || 10,
+                  // 只有管理员才可以传递指定的userId参数，否则使用当前用户ID
+                  userId: isAdmin ? (rest.userId || currentUserId) : currentUserId,
+                  ...rest
                 };
+                
+                console.log('使用常规参数加载任务:', pageParams);
+                
+                const result = await listTasksByPage(pageParams);
+                
+                console.log('查询结果:', result);
+                
+                // 处理数据加载
+                if (result && result.list) {
+                  console.log('加载任务列表:', result.list.length, '条数据');
+                  let filteredList = [...result.list];
+                  
+                  // 根据选项卡过滤
+                  if (activeTab !== 'all') {
+                    const today = moment().format('YYYY-MM-DD');
+                    
+                    if (activeTab === 'completed') {
+                      filteredList = filteredList.filter(task => task.completed);
+                    } else if (activeTab === 'uncompleted') {
+                      filteredList = filteredList.filter(task => !task.completed);
+                    } else if (activeTab === 'upcoming') {
+                      filteredList = filteredList.filter(task => !task.completed && task.dueDate && task.dueDate > today);
+                    } else if (activeTab === 'overdue') {
+                      filteredList = filteredList.filter(task => !task.completed && task.dueDate && task.dueDate < today);
+                    }
+                  }
+                  
+                  // 根据优先级过滤
+                  if (filterPriority) {
+                    filteredList = filteredList.filter(task => task.priority === filterPriority);
+                  }
+                  
+                  // 根据分类过滤
+                  if (filterCategory) {
+                    filteredList = filteredList.filter(task => task.category === filterCategory);
+                  }
+                  
+                  // 更新过滤后的数据
+                  handleDataLoaded(filteredList);
+                  
+                  // 返回过滤后的数据给ProTable
+                  return {
+                    data: filteredList,
+                    success: true,
+                    total: filteredList.length
+                  };
+                } else {
+                  console.warn('查询结果中没有list字段');
+                  return {
+                    data: [],
+                    total: 0,
+                    success: false,
+                  };
+                }
               }
             } catch (error: any) {
               console.error('查询任务失败:', error);
@@ -1468,7 +1507,7 @@ const TaskList: React.FC = () => {
           }}
           columns={columns}
         />
-      ) : viewMode === 'card' ? (
+      ) : (
         <Card>
           {getFilteredTasks().length > 0 ? (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -1509,40 +1548,6 @@ const TaskList: React.FC = () => {
               image={Empty.PRESENTED_IMAGE_SIMPLE} 
             />
           )}
-        </Card>
-      ) : (
-        <Card
-          title={
-            <Space>
-              <span>任务日历</span>
-              <Radio.Group
-                value={calendarMode}
-                onChange={e => setCalendarMode(e.target.value)}
-                buttonStyle="solid"
-                size="small"
-              >
-                <Radio.Button value="month">月视图</Radio.Button>
-                <Radio.Button value="year">年视图</Radio.Button>
-              </Radio.Group>
-            </Space>
-          }
-          style={{ marginBottom: 16 }}
-        >
-          <Spin spinning={loading}>
-            <Calendar 
-              mode={calendarMode}
-              dateCellRender={renderCalendarTasks}
-              onPanelChange={(date, mode) => {
-                console.log('日历面板变化:', date.format('YYYY-MM-DD'), mode);
-              }}
-              fullscreen={false}
-              style={{ 
-                background: '#fff',
-                padding: '12px',
-                borderRadius: '8px'
-              }}
-            />
-          </Spin>
         </Card>
       )}
 

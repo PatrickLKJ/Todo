@@ -32,6 +32,44 @@
     where id = #{id,jdbcType=INTEGER}
   </select>
   
+  <!-- 添加搜索方法 -->
+  <select id="search" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from task
+    <where>
+      <if test="userId != null">
+        and user_id = #{userId}
+      </if>
+      <if test="keyword != null and keyword != ''">
+        and (title like concat('%', #{keyword}, '%') 
+        or description like concat('%', #{keyword}, '%'))
+      </if>
+      <if test="completed != null">
+        and completed = #{completed}
+      </if>
+      <if test="priority != null and priority != ''">
+        and priority = #{priority}
+      </if>
+      <if test="category != null and category != ''">
+        and category = #{category}
+      </if>
+      <if test="dueDateStart != null and dueDateStart != ''">
+        and due_date >= #{dueDateStart}
+      </if>
+      <if test="dueDateEnd != null and dueDateEnd != ''">
+        and due_date &lt;= #{dueDateEnd}
+      </if>
+    </where>
+    order by 
+      case when priority = 'high' then 1
+           when priority = 'medium' then 2
+           when priority = 'low' then 3
+           else 4
+      end,
+      due_date asc
+  </select>
+  
   <insert id="insert" parameterType="redlib.backend.model.Task" useGeneratedKeys="true" keyProperty="id">
     insert into task (user_id, title, description, completed, due_date, priority, category)
     values (#{userId,jdbcType=INTEGER}, #{title,jdbcType=VARCHAR}, 

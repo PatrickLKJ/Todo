@@ -1,0 +1,5 @@
+[33mcommit a59c25b4638d1b191e022625c3e86238248cd1d2[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;33mtag: [m[1;33mstable-version[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: 李坤键 <14699915+PatrickKJ14689@user.noreply.gitee.com>
+Date:   Fri Apr 11 22:03:01 2025 +0800
+
+    feat: 优化UI设计为苹果风格并移除水印
