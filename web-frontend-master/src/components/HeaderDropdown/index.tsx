@@ -21,6 +21,7 @@ const HeaderDropdown: React.FC<HeaderDropdownProps> = ({ overlayClassName: cls, 
     <Dropdown
       overlayClassName={classNames(className, cls)}
       getPopupContainer={(target) => target.parentElement || document.body}
+      trigger={['click']}
       {...restProps}
     />
   );

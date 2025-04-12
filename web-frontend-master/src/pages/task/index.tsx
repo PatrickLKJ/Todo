@@ -13,7 +13,7 @@ import {
   EditOutlined, DeleteOutlined, ClockCircleOutlined, FireOutlined,
   DragOutlined, ThunderboltOutlined, EyeOutlined, ShareAltOutlined,
   PrinterOutlined, BarChartOutlined, InfoCircleOutlined, SettingOutlined,
-  BellOutlined, PushpinOutlined, TagOutlined, FlagOutlined
+  BellOutlined, PushpinOutlined, TagOutlined, FlagOutlined, ClearOutlined
 } from '@ant-design/icons';
 import { getTasksByPage as listTasksByPage, deleteTask, updateTask, searchTasksByPage } from '@/services/api/task';
 import { useModel, history } from 'umi';
@@ -102,9 +102,10 @@ const SortableTaskCard = ({ task, onEdit, onToggle, onDelete }: {
   
   // 计算截止日期状态
   const today = moment().format('YYYY-MM-DD');
+  const threeDaysLater = moment().add(3, 'days').format('YYYY-MM-DD');
   const isDueToday = task.dueDate === today;
-  const isOverdue = !task.completed && task.dueDate && task.dueDate < today;
-  const isUpcoming = !task.completed && task.dueDate && task.dueDate > today;
+  const isOverdue = !task.completed && task.dueDate && moment(task.dueDate, 'YYYY-MM-DD').isBefore(moment(), 'day');
+  const isUpcoming = !task.completed && task.dueDate && task.dueDate >= today && task.dueDate <= threeDaysLater;
   
   // 获取优先级颜色
   const getPriorityColor = (priority: string) => {
@@ -132,8 +133,33 @@ const SortableTaskCard = ({ task, onEdit, onToggle, onDelete }: {
     transition,
   };
   
+  // 阻止事件传播的处理函数
+  const handleStopPropagation = (e: React.MouseEvent<HTMLElement, MouseEvent> | undefined) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
+
+  // 编辑按钮处理
+  const handleEdit = (e: React.MouseEvent<HTMLElement, MouseEvent>) => {
+    handleStopPropagation(e);
+    onEdit(task);
+  };
+
+  // 切换完成状态处理
+  const handleToggle = (e: React.MouseEvent<HTMLElement, MouseEvent>) => {
+    handleStopPropagation(e);
+    onToggle(task);
+  };
+
+  // 删除处理
+  const handleDelete = () => {
+    onDelete(task.id!);
+  };
+  
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style}>
       <Card 
         size="small"
         hoverable
@@ -142,7 +168,6 @@ const SortableTaskCard = ({ task, onEdit, onToggle, onDelete }: {
           borderRadius: '12px',
           borderLeft: `3px solid ${getPriorityColor(task.priority || 'medium')}`,
           opacity: task.completed ? 0.8 : 1,
-          cursor: 'move',
           boxShadow: '0 2px 8px rgba(0,0,0,0.09)',
           transition: 'all 0.3s cubic-bezier(.25,.8,.25,1)',
           overflow: 'hidden',
@@ -151,39 +176,9 @@ const SortableTaskCard = ({ task, onEdit, onToggle, onDelete }: {
         bodyStyle={{
           padding: '16px',
         }}
-        actions={[
-          <Tooltip key="edit" title="编辑">
-            <EditOutlined onClick={(e) => {
-              if (e) e.stopPropagation();
-              onEdit(task);
-            }} />
-          </Tooltip>,
-          <Tooltip key="toggle" title={task.completed ? "取消完成" : "标记完成"}>
-            {task.completed ? 
-              <CloseCircleOutlined onClick={(e) => {
-                if (e) e.stopPropagation();
-                onToggle(task);
-              }} /> : 
-              <CheckCircleOutlined style={{ color: '#52c41a' }} onClick={(e) => {
-                if (e) e.stopPropagation();
-                onToggle(task);
-              }} />
-            }
-          </Tooltip>,
-          <Tooltip key="delete" title="删除">
-            <Popconfirm
-              title="确定删除此任务吗?"
-              onConfirm={(e) => {
-                if (e) e.stopPropagation();
-                onDelete(task.id!);
-              }}
-            >
-              <DeleteOutlined style={{ color: '#ff4d4f' }} onClick={(e) => e && e.stopPropagation()} />
-            </Popconfirm>
-          </Tooltip>,
-        ]}
       >
-        <div onClick={() => onEdit(task)}>
+        {/* 卡片内容 */}
+        <div onClick={(e) => handleEdit(e)}>
           <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ 
               fontWeight: 'bold', 
@@ -240,15 +235,52 @@ const SortableTaskCard = ({ task, onEdit, onToggle, onDelete }: {
               </Tag>
             </Space>
             
-            <div style={{ 
-              color: '#8c8c8c', 
-              fontSize: '12px',
-              display: 'flex',
-              alignItems: 'center'
-            }}>
+            {/* 拖拽句柄 - 单独放置，支持拖拽操作 */}
+            <div
+              style={{ color: '#8c8c8c', fontSize: '12px', cursor: 'move' }}
+              {...attributes}
+              {...listeners}
+            >
               <DragOutlined style={{ marginLeft: 8 }} />
             </div>
           </div>
+        </div>
+        
+        {/* 操作按钮区域 */}
+        <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
+          <Space>
+            <Tooltip title="编辑">
+              <Button 
+                type="text" 
+                icon={<EditOutlined />} 
+                onClick={handleEdit} 
+                size="small"
+              />
+            </Tooltip>
+            <Tooltip title={task.completed ? "取消完成" : "标记完成"}>
+              <Button 
+                type="text" 
+                icon={task.completed ? <CloseCircleOutlined /> : <CheckCircleOutlined style={{ color: '#52c41a' }} />} 
+                onClick={handleToggle}
+                size="small"
+              />
+            </Tooltip>
+            <Tooltip title="删除">
+              <Popconfirm
+                title="确定删除此任务吗?"
+                onConfirm={handleDelete}
+                onCancel={(e) => e && e.stopPropagation()}
+              >
+                <Button 
+                  type="text" 
+                  danger 
+                  icon={<DeleteOutlined />} 
+                  onClick={(e) => e.stopPropagation()}
+                  size="small"
+                />
+              </Popconfirm>
+            </Tooltip>
+          </Space>
         </div>
       </Card>
     </div>
@@ -542,6 +574,7 @@ const TaskList: React.FC = () => {
   const [taskData, setTaskData] = useState<API.Task[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [batchLoading, setBatchLoading] = useState<boolean>(false);
+  const [currentPageSize, setCurrentPageSize] = useState<number>(10);
   const [taskStats, setTaskStats] = useState({
     total: 0,
     completed: 0,
@@ -576,9 +609,19 @@ const TaskList: React.FC = () => {
   useEffect(() => {
     if (taskData.length > 0) {
       const today = moment().format('YYYY-MM-DD');
+      const threeDaysLater = moment().add(3, 'days').format('YYYY-MM-DD');
       const completed = taskData.filter(task => task.completed).length;
-      const upcoming = taskData.filter(task => !task.completed && task.dueDate && task.dueDate > today).length;
-      const overdue = taskData.filter(task => !task.completed && task.dueDate && task.dueDate < today).length;
+      const upcoming = taskData.filter(task => 
+        !task.completed && 
+        task.dueDate && 
+        task.dueDate >= today && 
+        task.dueDate <= threeDaysLater
+      ).length;
+      const overdue = taskData.filter(task => 
+        !task.completed && 
+        task.dueDate && 
+        moment(task.dueDate, 'YYYY-MM-DD').isBefore(moment(), 'day')
+      ).length;
       
       setTaskStats({
         total: taskData.length,
@@ -685,7 +728,7 @@ const TaskList: React.FC = () => {
       render: (_, record) => {
         if (!record.dueDate) return '-';
         
-        const dueDate = moment(record.dueDate);
+        const dueDate = moment(record.dueDate, 'YYYY-MM-DD');
         const today = moment();
         const isOverdue = !record.completed && dueDate.isBefore(today, 'day');
         
@@ -693,6 +736,7 @@ const TaskList: React.FC = () => {
           <span style={{ color: isOverdue ? '#ff4d4f' : 'inherit' }}>
             {isOverdue ? <ClockCircleOutlined style={{ marginRight: 4 }} /> : null}
             {dueDate.format('YYYY-MM-DD')}
+            {isOverdue && <Tag color="error" style={{ marginLeft: 8 }}>已逾期</Tag>}
           </span>
         );
       },
@@ -720,7 +764,7 @@ const TaskList: React.FC = () => {
             onClick={() => toggleTaskStatus(record)}
           />
         </Tooltip>,
-        <Tooltip title="删除" key="delete">
+        <Tooltip key="delete" title="删除">
           <Popconfirm
             title="确定删除此任务吗?"
             onConfirm={() => handleDelete(record.id!)}
@@ -745,9 +789,19 @@ const TaskList: React.FC = () => {
       } else if (activeTab === 'uncompleted') {
         filtered = filtered.filter(task => !task.completed);
       } else if (activeTab === 'upcoming') {
-        filtered = filtered.filter(task => !task.completed && task.dueDate && task.dueDate > today);
+        const threeDaysLater = moment().add(3, 'days').format('YYYY-MM-DD');
+        filtered = filtered.filter(task => 
+          !task.completed && 
+          task.dueDate && 
+          task.dueDate >= today && 
+          task.dueDate <= threeDaysLater
+        );
       } else if (activeTab === 'overdue') {
-        filtered = filtered.filter(task => !task.completed && task.dueDate && task.dueDate < today);
+        filtered = filtered.filter(task => 
+          !task.completed && 
+          task.dueDate && 
+          moment(task.dueDate, 'YYYY-MM-DD').isBefore(moment(), 'day')
+        );
       }
     }
     
@@ -825,6 +879,12 @@ const TaskList: React.FC = () => {
       // 调用更新API
       const result = await updateTask({ id: Number(task.id) }, updatedTask);
       message.success(updatedTask.completed ? '任务已完成' : '任务已恢复为未完成');
+      
+      // 手动更新本地任务数据，保证卡片视图同步刷新
+      setTaskData(prevTasks => 
+        prevTasks.map(t => t.id === task.id ? { ...t, completed: updatedTask.completed } : t)
+      );
+      
       // 刷新任务列表
       actionRef.current?.reload();
     } catch (error: any) {
@@ -1077,8 +1137,18 @@ const TaskList: React.FC = () => {
           setTaskStats({
             total: result.total,
             completed: result.list.filter((task: API.Task) => task.completed).length,
-            upcoming: result.list.filter((task: API.Task) => !task.completed && task.dueDate && moment(task.dueDate).isAfter(moment())).length,
-            overdue: result.list.filter((task: API.Task) => !task.completed && task.dueDate && moment(task.dueDate).isBefore(moment())).length,
+            upcoming: result.list.filter((task: API.Task) => {
+              if (task.completed || !task.dueDate) return false;
+              const today = moment();
+              const dueDate = moment(task.dueDate);
+              const threeDaysLater = moment().add(3, 'days');
+              return dueDate.isSameOrAfter(today, 'day') && dueDate.isSameOrBefore(threeDaysLater, 'day');
+            }).length,
+            overdue: result.list.filter((task: API.Task) => 
+              !task.completed && 
+              task.dueDate && 
+              moment(task.dueDate, 'YYYY-MM-DD').isBefore(moment(), 'day')
+            ).length,
           });
         }
       } catch (error) {
@@ -1131,13 +1201,20 @@ const TaskList: React.FC = () => {
             style={{ width: '100%' }}
           />
         </Col>
-        <Col span={4}>
+        <Col span={8}>
           <Button
             type="primary"
             icon={<FilterOutlined />}
             onClick={() => setAdvancedSearchVisible(true)}
+            style={{ marginRight: 8 }}
           >
             高级搜索
+          </Button>
+          <Button
+            icon={<ClearOutlined />}
+            onClick={() => handleSearch({})}
+          >
+            重置搜索
           </Button>
         </Col>
       </Row>
@@ -1358,7 +1435,12 @@ const TaskList: React.FC = () => {
           )}
           pagination={{
             showQuickJumper: true,
-            pageSize: 10,
+            showSizeChanger: true,
+            pageSize: currentPageSize,
+            onChange: (page, pageSize) => {
+              console.log('分页变化 - 页码:', page, '每页条数:', pageSize);
+              setCurrentPageSize(pageSize);
+            },
           }}
           request={async (params, sort, filter) => {
             const { current, pageSize, ...rest } = params;
@@ -1367,6 +1449,8 @@ const TaskList: React.FC = () => {
               console.log('当前用户ID为空，跳过请求');
               return { data: [], total: 0, success: false };
             }
+            
+            console.log('ProTable请求参数 - current:', current, 'pageSize:', pageSize, '其他参数:', rest);
             
             try {
               setLoading(true);
@@ -1402,7 +1486,13 @@ const TaskList: React.FC = () => {
                     } else if (activeTab === 'uncompleted') {
                       filteredList = filteredList.filter(task => !task.completed);
                     } else if (activeTab === 'upcoming') {
-                      filteredList = filteredList.filter(task => !task.completed && task.dueDate && task.dueDate > today);
+                      const threeDaysLater = moment().add(3, 'days').format('YYYY-MM-DD');
+                      filteredList = filteredList.filter(task => 
+                        !task.completed && 
+                        task.dueDate && 
+                        task.dueDate >= today && 
+                        task.dueDate <= threeDaysLater
+                      );
                     } else if (activeTab === 'overdue') {
                       filteredList = filteredList.filter(task => !task.completed && task.dueDate && task.dueDate < today);
                     }
@@ -1455,7 +1545,13 @@ const TaskList: React.FC = () => {
                     } else if (activeTab === 'uncompleted') {
                       filteredList = filteredList.filter(task => !task.completed);
                     } else if (activeTab === 'upcoming') {
-                      filteredList = filteredList.filter(task => !task.completed && task.dueDate && task.dueDate > today);
+                      const threeDaysLater = moment().add(3, 'days').format('YYYY-MM-DD');
+                      filteredList = filteredList.filter(task => 
+                        !task.completed && 
+                        task.dueDate && 
+                        task.dueDate >= today && 
+                        task.dueDate <= threeDaysLater
+                      );
                     } else if (activeTab === 'overdue') {
                       filteredList = filteredList.filter(task => !task.completed && task.dueDate && task.dueDate < today);
                     }
@@ -1603,6 +1699,31 @@ const TaskList: React.FC = () => {
         onCancel={() => setFormVisible(false)}
         onSuccess={() => {
           setFormVisible(false);
+          
+          // 增加手动刷新数据的逻辑，确保卡片视图也能立即看到变化
+          const refreshData = async () => {
+            try {
+              setLoading(true);
+              const result = await listTasksByPage({
+                pageNum: 1,
+                pageSize: 100, // 获取更多数据以确保所有任务都被加载
+                userId: currentUserId
+              });
+              
+              if (result && result.list) {
+                // 更新本地任务数据
+                setTaskData(result.list);
+              }
+            } catch (error) {
+              console.error('刷新任务列表失败:', error);
+            } finally {
+              setLoading(false);
+            }
+          };
+          
+          refreshData();
+          
+          // 同时也通过actionRef刷新数据
           actionRef.current?.reload();
         }}
       />

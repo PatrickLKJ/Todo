@@ -1,9 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Form, Input, Modal, DatePicker, Switch, message, Select, Tag, Space, Row, Col, Divider, Button, Alert } from 'antd';
 import { CalendarOutlined, ClockCircleOutlined, FlagOutlined, TagOutlined, PushpinOutlined, ExclamationCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import { createTask, updateTask } from '@/services/api/task';
 import { useModel } from 'umi';
+
+// 自定义日期选择器组件，解决日历默认显示远期日期和鼠标移动跳动问题
+const CustomDatePicker = (props: any) => {
+  useEffect(() => {
+    // 创建一个style元素，仅执行一次
+    const styleId = 'date-picker-fix';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.innerHTML = `
+        /* 禁用日期单元格的悬停背景变化，解决跳动问题 */
+        .ant-picker-cell:hover .ant-picker-cell-inner {
+          background: transparent !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+  
+  // 直接使用标准DatePicker，不做特殊处理
+  return <DatePicker {...props} inputReadOnly={true} />;
+};
 
 interface TaskFormProps {
   visible: boolean;
@@ -18,6 +40,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
   const currentUserId = initialState?.currentToken?.userId;
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // 添加状态来存储表单的最新值，用于预览
+  const [formValues, setFormValues] = useState<any>({});
   
   // 优先级映射到样式
   const priorityColors = {
@@ -47,6 +71,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
         };
         console.log('编辑模式表单初始值:', formValues);
         form.setFieldsValue(formValues);
+        // 同步设置预览状态
+        setFormValues(formValues);
       } else {
         // 新建模式 - 重置表单并设置默认值
         form.resetFields();
@@ -58,9 +84,17 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
         };
         console.log('新建模式表单默认值:', defaultValues);
         form.setFieldsValue(defaultValues);
+        // 同步设置预览状态
+        setFormValues(defaultValues);
       }
     }
   }, [visible, task, form, initialState, currentUserId]);
+  
+  // 表单值变化处理函数
+  const handleValuesChange = (changedValues: any, allValues: any) => {
+    console.log('表单值变化:', changedValues);
+    setFormValues(allValues);
+  };
   
   const handleSubmit = async () => {
     try {
@@ -74,7 +108,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
         title: values.title.trim(),
         description: values.description ? values.description.trim() : '',
         completed: values.completed === true ? true : false,
-        dueDate: values.dueDate ? moment(values.dueDate).format('YYYY-MM-DD') : undefined,
+        // 修改日期处理逻辑
+        dueDate: values.dueDate ? values.dueDate.format('YYYY-MM-DD') : undefined,
         priority: values.priority || 'medium',
         category: values.category || 'work'
       };
@@ -84,7 +119,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
       try {
         if (task?.id) {
           // 更新任务
-          await updateTask({ id: Number(task.id) }, { ...taskData, id: task.id });
+          await updateTask({ id: Number(task.id) }, taskData);
           message.success('任务更新成功');
         } else {
           // 创建任务
@@ -92,10 +127,11 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
           message.success('任务创建成功');
         }
         onSuccess();
-      } catch (error: any) {
+      } catch (error) {
         console.error('API请求错误:', error);
-        setErrorMessage(error.message || '服务器错误，请稍后重试');
-        message.error('操作失败: ' + (error.message || '未知错误'));
+        const errorMessage = error instanceof Error ? error.message : '服务器错误，请稍后重试';
+        setErrorMessage(errorMessage);
+        message.error('操作失败: ' + errorMessage);
       }
     } catch (error) {
       console.error('表单验证错误:', error);
@@ -107,7 +143,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
   
   // 预览当前任务
   const TaskPreview = () => {
-    const values = form.getFieldsValue();
+    // 使用formValues状态而不是直接调用form.getFieldsValue()
+    const values = formValues;
     const priority = values.priority as 'high' | 'medium' | 'low' || 'medium';
     const category = values.category as 'work' | 'study' | 'life' | 'other' || 'work';
     
@@ -204,7 +241,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
         />
       )}
       
-      <Form form={form} layout="vertical">
+      <Form form={form} layout="vertical" onValuesChange={handleValuesChange}>
         {/* 隐藏用户ID字段，通过代码逻辑自动获取 */}
         <Form.Item name="userId" hidden>
           <Input type="hidden" />
@@ -292,15 +329,12 @@ const TaskForm: React.FC<TaskFormProps> = ({ visible, task, onCancel, onSuccess 
               name="dueDate"
               label="截止日期"
             >
-              <DatePicker 
+              <CustomDatePicker
                 placeholder="选择截止日期" 
                 style={{ width: '100%', borderRadius: '6px' }} 
                 format="YYYY-MM-DD"
                 allowClear
                 showToday
-                onChange={(date, dateString) => {
-                  console.log('选择的日期:', date, dateString);
-                }}
               />
             </Form.Item>
           </Col>

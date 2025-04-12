@@ -134,7 +134,7 @@ const Login: React.FC = () => {
     <div className={containerClassName}>
       <Helmet>
         <title>
-          登录 - 高效任务清单
+          登录 - TodoList
         </title>
       </Helmet>
       <Lang />
@@ -153,7 +153,7 @@ const Login: React.FC = () => {
               <CheckCircleOutlined style={{ marginRight: '10px' }} />
               <CalendarOutlined />
             </div>
-            <div className={titleClass}>高效任务清单</div>
+            <div className={titleClass}>TodoList</div>
             <div className={subtitleClass}>规划、跟踪、完成——掌控每一个任务</div>
           </div>
           

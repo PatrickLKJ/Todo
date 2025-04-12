@@ -15,7 +15,7 @@ const Settings: LayoutSettings & {
   fixedHeader: true,
   fixSiderbar: true,
   colorWeak: false,
-  title: '高效任务清单',
+  title: 'TodoList',
   pwa: false,
   logo: '/todolist-logo.svg',
   iconfontUrl: '',

@@ -40,7 +40,6 @@ CREATE TABLE `task` (
 -- ----------------------------
 -- 初始测试数据
 -- ----------------------------
--- 用户数据（密码都是123456的BCrypt加密值）
 INSERT INTO `user` (username, password, nickname) VALUES
 ('mike', '123456', '小明'),
 ('lucy', '123456', '露西'),
